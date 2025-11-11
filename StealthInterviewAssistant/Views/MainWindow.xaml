@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Stealth Interview Assistant" Height="500" Width="700"
+        Title="Stealth Interview Assistant" Height="650" Width="700"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -156,6 +156,100 @@
             </Setter>
         </Style>
         
+        <!-- Toggle Button Style -->
+        <Style x:Key="ToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#4EC9B0"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4EC9B0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#3D3D40"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Border"
+                                                           Storyboard.TargetProperty="Opacity"
+                                                           To="0.8"
+                                                           Duration="0:0:0.1"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Border"
+                                                           Storyboard.TargetProperty="Opacity"
+                                                           To="1.0"
+                                                           Duration="0:0:0.1"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Action Button Style -->
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#4EC9B0"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4EC9B0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#3A9B8A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
         <!-- Custom ScrollBar Style -->
         <Style x:Key="CustomScrollBarStyle" TargetType="ScrollBar">
             <Setter Property="Width" Value="1.5"/>
@@ -224,6 +318,11 @@
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"/>
             <Grid x:Name="ContentGrid" MouseDown="Grid_MouseDown" Visibility="Hidden">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="CaptionColumn" Width="5*"/>
                 <ColumnDefinition Width="8"/>
@@ -232,6 +331,7 @@
         
         <!-- Left Column: Caption Panel -->
         <Border x:Name="LeftPanel"
+                Grid.Row="0"
                 Grid.Column="0" 
                 Background="#D0252526" 
                 BorderBrush="#D03F3F46" 
@@ -417,7 +517,8 @@
         </Border>
         
         <!-- Splitter with thin dash and thick transparent control area -->
-        <Border Grid.Column="1" 
+        <Border Grid.Row="0"
+                Grid.Column="1" 
                 HorizontalAlignment="Center"
                 Width="5"
                 Background="Transparent">
@@ -429,7 +530,8 @@
                       HorizontalAlignment="Center"
                       Width="2.5"/>
         </Border>
-        <GridSplitter Grid.Column="1" 
+        <GridSplitter Grid.Row="0"
+                     Grid.Column="1" 
                      HorizontalAlignment="Stretch" 
                      Background="Transparent"
                      Width="5"
@@ -437,6 +539,7 @@
         
         <!-- Right Column: Stealth Browser -->
         <Border x:Name="RightPanel"
+                Grid.Row="0"
                 Grid.Column="2" 
                 Background="#D0252526" 
                 BorderBrush="#D03F3F46" 
@@ -522,6 +625,108 @@
                 </Border>
             </Grid>
         </Border>
+            </Grid>
+            
+            <!-- Button Groups Row -->
+            <Grid Grid.Row="1" 
+                  Margin="10,0,10,10"
+                  x:Name="ButtonGroupsContainer"
+                  Opacity="0"
+                  Visibility="Hidden">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Left Button Group: Toggle Buttons -->
+                <Border Grid.Column="0"
+                        Background="#D0252526"
+                        BorderBrush="#D03F3F46"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Disabled">
+                        <ScrollViewer.Resources>
+                            <Style TargetType="ScrollBar" BasedOn="{StaticResource CustomScrollBarStyle}"/>
+                        </ScrollViewer.Resources>
+                        <WrapPanel x:Name="ToggleButtonsPanel"
+                                  Orientation="Horizontal">
+                            <ToggleButton x:Name="ToggleConcised"
+                                         Content="Concised"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleInteresting"
+                                         Content="Interesting - light Funny"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleSTAR"
+                                         Content="STAR"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleSharp"
+                                         Content="Sharp"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleCreative"
+                                         Content="Creative"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleMentioning"
+                                         Content="Mentioning specific thing(s)"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleStoryMode"
+                                         Content="Story mode"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleImpactful"
+                                         Content="Impactful"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                            <ToggleButton x:Name="ToggleTechStack"
+                                         Content="Tech stack versions at the next of it if the answer includes tech stacks"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Checked="ToggleButton_Checked"
+                                         Unchecked="ToggleButton_Unchecked"/>
+                        </WrapPanel>
+                    </ScrollViewer>
+                </Border>
+                
+                <!-- Right Button Group: Action Buttons -->
+                <Border Grid.Column="2"
+                        Background="#D0252526"
+                        BorderBrush="#D03F3F46"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10">
+                    <StackPanel Orientation="Vertical">
+                        <Button x:Name="AnswerButton"
+                               Content="Answer"
+                               Click="AnswerButton_Click"
+                               Style="{StaticResource ActionButtonStyle}"
+                               Margin="0,0,0,8"/>
+                        <Button x:Name="FollowUpButton"
+                               Content="FollowUp"
+                               Click="FollowUpButton_Click"
+                               Style="{StaticResource ActionButtonStyle}"
+                               Margin="0,0,0,8"/>
+                        <Button x:Name="ClarifyButton"
+                               Content="Clarify"
+                               Click="ClarifyButton_Click"
+                               Style="{StaticResource ActionButtonStyle}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
             </Grid>
             <!-- Startup Animation Label - Centered overlay on top of everything -->
             <Border x:Name="StartupLabelContainer"

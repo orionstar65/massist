@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -293,6 +294,19 @@ namespace StealthInterviewAssistant.Views
             {
                 ContentGrid.Visibility = Visibility.Hidden;
             }
+
+            // Initialize button groups container transform for animation
+            var buttonGroups = this.FindName("ButtonGroupsContainer") as System.Windows.FrameworkElement;
+            if (buttonGroups != null)
+            {
+                var buttonTransform = buttonGroups.RenderTransform as System.Windows.Media.TranslateTransform;
+                if (buttonTransform == null)
+                {
+                    buttonTransform = new System.Windows.Media.TranslateTransform();
+                    buttonTransform.Y = 20; // Start position for slide-down animation
+                    buttonGroups.RenderTransform = buttonTransform;
+                }
+            }
             
             // Start the startup label animation (content panels will appear after label hides)
             StartStartupAnimation();
@@ -500,6 +514,39 @@ namespace StealthInterviewAssistant.Views
                         };
 
                         captionText.BeginAnimation(System.Windows.UIElement.OpacityProperty, textFade);
+                    }
+
+                    // Animate button groups (fade down)
+                    var buttonGroups = this.FindName("ButtonGroupsContainer") as System.Windows.FrameworkElement;
+                    if (buttonGroups != null)
+                    {
+                        buttonGroups.Visibility = System.Windows.Visibility.Visible;
+                        var buttonFade = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 0.0,
+                            To = 1.0,
+                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.6)),
+                            BeginTime = TimeSpan.FromSeconds(0.6),
+                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+
+                        var buttonSlide = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 20,
+                            To = 0,
+                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.6)),
+                            BeginTime = TimeSpan.FromSeconds(0.6),
+                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+
+                        buttonGroups.BeginAnimation(System.Windows.UIElement.OpacityProperty, buttonFade);
+                        var buttonTransform = buttonGroups.RenderTransform as System.Windows.Media.TranslateTransform;
+                        if (buttonTransform == null)
+                        {
+                            buttonTransform = new System.Windows.Media.TranslateTransform();
+                            buttonGroups.RenderTransform = buttonTransform;
+                        }
+                        buttonTransform.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, buttonSlide);
                     }
                     }
                     catch (Exception innerEx)
@@ -1782,6 +1829,130 @@ namespace StealthInterviewAssistant.Views
                 // Window is visible, hide it (cloak and move off-screen)
                 LiveCaptionsTaskbarHider.HideKeepRunning();
             }
+        }
+
+        // Toggle button handlers (no-op, just for visual feedback)
+        private void ToggleButton_Checked(object sender, RoutedEventArgs e)
+        {
+            // Toggle button state is handled by the control itself
+        }
+
+        private void ToggleButton_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Toggle button state is handled by the control itself
+        }
+
+        // Get list of active toggle button values
+        private List<string> GetActiveToggleValues()
+        {
+            var activeValues = new List<string>();
+            
+            if (ToggleConcised?.IsChecked == true) activeValues.Add("Concised");
+            if (ToggleInteresting?.IsChecked == true) activeValues.Add("Interesting - light Funny");
+            if (ToggleSTAR?.IsChecked == true) activeValues.Add("STAR");
+            if (ToggleSharp?.IsChecked == true) activeValues.Add("Sharp");
+            if (ToggleCreative?.IsChecked == true) activeValues.Add("Creative");
+            if (ToggleMentioning?.IsChecked == true) activeValues.Add("Mentioning specific thing(s)");
+            if (ToggleStoryMode?.IsChecked == true) activeValues.Add("Story mode");
+            if (ToggleImpactful?.IsChecked == true) activeValues.Add("Impactful");
+            if (ToggleTechStack?.IsChecked == true) activeValues.Add("Tech stack versions at the next of it if the answer includes tech stacks");
+            
+            return activeValues;
+        }
+
+        // Send text with prompt wrapper
+        private async Task SendTextWithPrompt(string prompt, bool includeToggleModifiers = false)
+        {
+            // Prevent concurrent sends with lock
+            lock (_sendLock)
+            {
+                if (_isSending)
+                {
+                    System.Diagnostics.Debug.WriteLine("Send already in progress, ignoring button click");
+                    return;
+                }
+                _isSending = true;
+            }
+
+            try
+            {
+                if (StealthBrowser?.CoreWebView2 == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("WebView2 not initialized, cannot send text");
+                    return;
+                }
+
+                if (DataContext is MainViewModel viewModel)
+                {
+                    // Get the last part of caption (text that hasn't been sent yet)
+                    string lastPart = viewModel.GetLastCaptionPart();
+                    if (string.IsNullOrWhiteSpace(lastPart))
+                    {
+                        System.Diagnostics.Debug.WriteLine("No caption text to send");
+                        return;
+                    }
+
+                    // Build the prompt
+                    string finalPrompt = prompt;
+                    
+                    if (includeToggleModifiers)
+                    {
+                        var toggleValues = GetActiveToggleValues();
+                        if (toggleValues.Count > 0)
+                        {
+                            string toggleString = string.Join(", ", toggleValues);
+                            // Replace "answer this" with "Answer this with {toggles} answer"
+                            finalPrompt = $"Answer this with {toggleString} answer";
+                        }
+                    }
+
+                    // Wrap the original data with quotes and add prompt
+                    string wrappedText = $"\"{lastPart}\" {finalPrompt}";
+
+                    System.Diagnostics.Debug.WriteLine($"Sending text to WebView with prompt (length: {wrappedText.Length})");
+
+                    // Mark the text as sent IMMEDIATELY to prevent duplicate sends
+                    viewModel.MarkLastCaptionAsSent();
+                    
+                    // Send text to WebView
+                    bool success = await SendTextToWebViewAsKeyEvents(wrappedText);
+                    
+                    if (success)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Text sent to WebView successfully (length: {wrappedText.Length})");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to send text to WebView");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending text to WebView: {ex.Message}\n{ex.StackTrace}");
+            }
+            finally
+            {
+                lock (_sendLock)
+                {
+                    _isSending = false;
+                }
+            }
+        }
+
+        private async void AnswerButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendTextWithPrompt("answer this", includeToggleModifiers: true);
+        }
+
+        private async void FollowUpButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendTextWithPrompt("how to followup this and give me questions if the question is needed to give impact");
+        }
+
+        private async void ClarifyButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendTextWithPrompt("give me clarification for this. give me clear vision of this with bullets and some questions that I can ask if something unclear here");
         }
 
 

@@ -1,3 +1,4 @@
+// LiveCaptionsService.cs
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -14,14 +15,12 @@ namespace StealthInterviewAssistant.Services
         // ---------- Thread-safe state ----------
         private readonly object _stateLock = new object();
 
-        // Rolling mirror (exact normalized system text right now)
-        private string _mirror = string.Empty;
-        private string _prevMirror = string.Empty;
+        // Previous system snapshot (normalized)
+        private string _lastSnapshot = string.Empty;
 
-        // Full transcript (never shrinks)
-        private readonly StringBuilder _history = new StringBuilder(8192);
-        private int _historySentPos = 0;      // index in history last sent to GPT
-        private bool _baselineSnapped = false; // ensures initial backlog isn't sent
+        // Public-facing: full, unbounded transcript for your app
+        private readonly StringBuilder _history = new StringBuilder(32_768);
+        private int _lastSentPos = 0; // index into history for hotkey delta
 
         // UIA
         private AutomationElement? _liveCaptionsWindow;
@@ -33,27 +32,23 @@ namespace StealthInterviewAssistant.Services
         private System.Threading.Timer? _tick;
         private bool _isRunning = false;
 
+        // Reentrancy guard for Tick
+        private int _inTick = 0;
+
         // Tunables
-        private const int POLL_INTERVAL_MS   = 200;
-        private const int MAX_MIRROR_CHARS   = 2_000_000; // safety cap for mirror
-        private const int MAX_HISTORY_CHARS  = 20_000_000; // safety cap for full history (~20MB)
-
-        // Overlap matching (robust to head trim & tail rewrites)
-        private const int OVERLAP_PROBE = 400;
-        private const int MIN_TRUSTED_OVERLAP = 24;
-
-        // Scroll throttling
-        private int _scrollTickMod = 0;
+        private const int POLL_INTERVAL_MS = 160; // snappy but light
+        private const int MAX_OVERLAP = 4096;     // search deeper to avoid hard realigns
+        private const int MIN_NEW_CHARS = 0;      // allow 0 on frames where we only realign
 
         // Logging
         private readonly string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "livecaption.log");
         private readonly object _logLock = new object();
+        private long _frame = 0;
 
-        // Public events
-        public event Action<string>? OnNewText; // now emits FULL history text
+        // Events
+        public event Action<string>? OnNewText; // emits full history to your UI
 
         // ---------- Public API ----------
-
         public async Task<bool> StartAsync()
         {
             return await Task.Run(() =>
@@ -65,10 +60,10 @@ namespace StealthInterviewAssistant.Services
                     {
                         if (!TryLaunchLiveCaptions()) return false;
                         Thread.Sleep(2000);
-                        for (int i = 0; i < 5 && _liveCaptionsWindow == null; i++)
+                        for (int i = 0; i < 8 && _liveCaptionsWindow == null; i++)
                         {
                             _liveCaptionsWindow = FindLiveCaptionsWindow();
-                            Thread.Sleep(1000);
+                            Thread.Sleep(700);
                         }
                         if (_liveCaptionsWindow == null) return false;
                     }
@@ -83,32 +78,26 @@ namespace StealthInterviewAssistant.Services
                     _textChangedHandler = OnTextChanged;
                     Automation.AddAutomationEventHandler(TextPattern.TextChangedEvent, _textContainer, TreeScope.Element, _textChangedHandler);
 
-                    // Initial snapshot
-                    string initialRaw = ReadSystemTextSafely();
-                    string initial = NormalizeSystemText(initialRaw);
+                    string initial = ReadSystemTextSafely();
+                    string normInitial = Normalize(initial);
 
                     lock (_stateLock)
                     {
-                        _mirror = initial;
-                        _prevMirror = _mirror;
-
-                        // Start history with what we see at boot
                         _history.Clear();
-                        _history.Append(_mirror);
+                        _history.Append(normInitial);
+                        _lastSnapshot = normInitial;
 
-                        // Snap baseline so initial backlog isn't sent on first hotkey
-                        _historySentPos = _history.Length;
-                        _baselineSnapped = true;
+                        _lastSentPos = _history.Length; // skip initial buffer on first send
+                        _frame = 0;
                     }
 
-                    // UI now shows FULL HISTORY
-                    NotifyUI(GetHistoryUnsafe());
+                    NotifyFullHistoryToUI();
 
                     _isRunning = true;
                     _tick = new System.Threading.Timer(Tick, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
                     TryMinimizeWindow(_liveCaptionsWindow);
 
-                    Log("START", initial, $"mirror={_mirror.Length}, history={_history.Length}");
+                    LogFrame("START", normInitial, "init", appended: "", details: $"H={_history.Length}, lastSent={_lastSentPos}");
                     return true;
                 }
                 catch (Exception ex)
@@ -139,212 +128,236 @@ namespace StealthInterviewAssistant.Services
             _liveCaptionsWindow = null;
         }
 
-        /// <summary>
-        /// Exact text shown in your app. Now this returns the FULL transcript history.
-        /// (Your UI uses OnNewText already; this keeps behavior consistent.)
-        /// </summary>
+        /// <summary>Full, unbounded transcript text.</summary>
         public string GetAll()
         {
             lock (_stateLock) return _history.ToString();
         }
 
-        /// <summary>
-        /// Returns ONLY the newly appended history since the last send.
-        /// This is independent from the rolling system buffer.
-        /// </summary>
+        /// <summary>Returns only the new text since last hotkey send.</summary>
         public string GetLastPart()
         {
             lock (_stateLock)
             {
-                if (!_baselineSnapped)
-                {
-                    _historySentPos = _history.Length;
-                    _baselineSnapped = true;
-                    return string.Empty;
-                }
-                if (_historySentPos >= _history.Length) return string.Empty;
-                return _history.ToString(_historySentPos, _history.Length - _historySentPos);
+                if (_lastSentPos >= _history.Length) return string.Empty;
+                return _history.ToString(_lastSentPos, _history.Length - _lastSentPos);
             }
         }
 
-        /// <summary>
-        /// Marks current history end as sent.
-        /// </summary>
+        /// <summary>Advance baseline to end of history.</summary>
         public void MarkLastPartAsSent()
         {
             lock (_stateLock)
             {
-                _historySentPos = _history.Length;
-                _baselineSnapped = true;
-                Debug.WriteLine($"History baseline advanced. sentPos={_historySentPos}, historyLen={_history.Length}");
+                _lastSentPos = _history.Length;
+                Debug.WriteLine($"Marked as sent. sentPos={_lastSentPos}");
             }
         }
 
-        /// <summary>
-        /// Clears history and mirror (rare; typically you won't call this during a session).
-        /// </summary>
+        /// <summary>Clear mirror & history, reset baseline.</summary>
         public void Clear()
         {
             lock (_stateLock)
             {
-                _mirror = string.Empty;
-                _prevMirror = string.Empty;
                 _history.Clear();
-                _historySentPos = 0;
-                _baselineSnapped = false;
+                _lastSnapshot = string.Empty;
+                _lastSentPos = 0;
+                _frame = 0;
             }
-            NotifyUI(string.Empty);
-            Log("CLEAR", "", "Buffers cleared");
+            NotifyFullHistoryToUI();
+            LogFrame("CLEAR", "", "clear", "", "Buffers cleared");
         }
 
         // ---------- Core loop ----------
-
+        // --- Replace your current Tick with this one ---
         private void Tick(object? _)
         {
             if (!_isRunning || _textPattern == null) return;
 
-            TryOccasionalScroll();
+            // Reentrancy guard
+            if (Interlocked.Exchange(ref _inTick, 1) == 1) return;
 
-            string systemRaw;
-            try { systemRaw = _textPattern.DocumentRange.GetText(-1) ?? string.Empty; }
-            catch { return; }
-
-            string system = NormalizeSystemText(systemRaw);
-            string? uiTextToRaise = null;
-
-            lock (_stateLock)
+            try
             {
-                if (system != _prevMirror)
+                TryOccasionalScroll();
+
+                string systemRaw;
+                try { systemRaw = _textPattern.DocumentRange.GetText(-1) ?? string.Empty; }
+                catch { return; }
+
+                string snap = Normalize(systemRaw);
+                if (string.IsNullOrEmpty(snap)) return;
+
+                bool changed = false;
+                string usedCase = "";
+                string appendedPreview = "";
+                string details = "";
+
+                lock (_stateLock)
                 {
-                    // Compute "net new" relative to previous mirror and append to history.
-                    string newlyVisible = ComputeDeltaSincePrev(_prevMirror, system);
-
-                    _mirror = system;
-                    _prevMirror = system;
-
-                    if (newlyVisible.Length > 0)
+                    // 0) Already aligned? (history tail equals snapshot)
+                    if (EndsWithOrdinal(_history, snap))
                     {
-                        _history.Append(newlyVisible);
+                        usedCase = "aligned";
+                        details = $"snap={snap.Length}, H={_history.Length}";
+                    }
+                    else
+                    {
+                        // 1) Find longest prefix of snapshot that appears in the tail of history.
+                        //    If found at 'start', splice: history = history[..start] + snapshot
+                        int searchWindow = Math.Max(snap.Length * 2, 4096); // deeper than snap
+                        var (start, matchLen) = FindBestPrefixMatchStart(_history, snap, searchWindow);
 
-                        // Safety cap for runaway sessions: drop from the FRONT of the history buffer.
-                        if (_history.Length > MAX_HISTORY_CHARS)
+                        if (start >= 0 && matchLen > 0)
                         {
-                            int keep = (int)(MAX_HISTORY_CHARS * 0.9);
-                            int remove = _history.Length - keep;
-                            if (remove > 0)
+                            // Splice from match start with the full snapshot
+                            // Guarantees: history tail == snapshot and avoids duplication
+                            ApplySplice(_history, start, snap);
+                            changed = true;
+                            usedCase = "splice-prefix-match";
+                            appendedPreview = Preview(snap.Substring(matchLen)); // what effectively changed after the overlap
+                            details = $"matchLen={matchLen}, start={start}, snap={snap.Length}, H={_history.Length}";
+                        }
+                        else
+                        {
+                            // 2) No overlap found. Hard realign once (avoid duplicates if repeated).
+                            if (!EndsWithOrdinal(_history, snap))
                             {
-                                // Remove from front
-                                var trimmed = _history.ToString(remove, keep);
-                                _history.Clear();
-                                _history.Append(trimmed);
-
-                                // Adjust send pointer
-                                _historySentPos = Math.Max(0, _historySentPos - remove);
+                                if (_history.Length > 0 && _history[_history.Length - 1] != '\n')
+                                    _history.Append('\n');
+                                _history.Append(snap);
+                                changed = true;
+                                usedCase = "hard-realign";
+                                appendedPreview = Preview(snap);
+                                details = $"snap={snap.Length}, H={_history.Length}";
                             }
+                            else
+                            {
+                                usedCase = "already-aligned";
+                                details = $"snap={snap.Length}, H={_history.Length}";
+                            }
+                        }
+
+                        // 3) Sanity: enforce invariant
+                        if (!EndsWithOrdinal(_history, snap))
+                        {
+                            // Force fix (very rare)
+                            int startFix = Math.Max(0, _history.Length - snap.Length);
+                            ApplySplice(_history, startFix, snap);
+                            usedCase += "+fix";
                         }
                     }
 
-                    // UI shows full history
-                    uiTextToRaise = _history.ToString();
-                }
-            }
+                    _lastSnapshot = snap;
+                    _frame++;
 
-            if (uiTextToRaise != null)
+                    LogFrame("UPDATE", snap, usedCase, appendedPreview, details);
+                }
+
+                if (changed) NotifyFullHistoryToUI();
+            }
+            finally
             {
-                Log("UPDATE", system, $"mirror={_mirror.Length}, history={uiTextToRaise.Length}");
-                NotifyUI(uiTextToRaise);
+                Interlocked.Exchange(ref _inTick, 0);
             }
         }
 
-        // ---------- Delta helpers ----------
+        // --- Add these helpers ---
 
-        // Normalize LC text to avoid invisible-mismatch issues
-        private static string NormalizeSystemText(string s)
+        /// <summary>
+        /// Find the longest k (1..min(snap, window)) such that
+        /// history tail window contains snap[0..k) and return the *last* occurrence
+        /// start index in history. If found, return (start, k). Else (-1, 0).
+        /// Strategy: search longer prefixes first; prefer the latest occurrence
+        /// in the window to minimize deletions.
+        /// </summary>
+        private static (int start, int matchLen) FindBestPrefixMatchStart(StringBuilder history, string snapshot, int maxWindow)
         {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
+            if (snapshot.Length == 0 || history.Length == 0) return (-1, 0);
 
-            // Remove zero-width and soft hyphen artifacts
-            s = s.Replace("\u200B", string.Empty) // ZWSP
-                 .Replace("\uFEFF", string.Empty) // ZWNBSP/BOM
-                 .Replace("\u00AD", string.Empty) // SHY
-                 .Replace("\u200C", string.Empty) // ZWNJ
-                 .Replace("\u200D", string.Empty); // ZWJ
+            int winLen = Math.Min(history.Length, maxWindow);
+            int winStart = history.Length - winLen;
 
-            // Normalize line endings to '\n'
-            s = s.Replace("\r\n", "\n").Replace("\r", "\n");
+            // Extract window as string for efficient search
+            string hwin = history.ToString(winStart, winLen);
 
-            return s;
+            int maxLen = Math.Min(snapshot.Length, winLen);
+            for (int len = maxLen; len > 0; len--)
+            {
+                string pref = snapshot.Substring(0, len);
+                int idx = hwin.LastIndexOf(pref, StringComparison.Ordinal);
+                if (idx >= 0)
+                {
+                    int absStart = winStart + idx;
+                    return (absStart, len);
+                }
+            }
+
+            return (-1, 0);
         }
 
         /// <summary>
-        /// Compute what is truly "newly visible" when moving from prevMirror to currMirror.
-        /// Robust against:
-        ///   - Pure append
-        ///   - Tail rewrites (small corrections at the end)
-        ///   - Head trims (rolling buffer drops the beginning)
-        /// Strategy:
-        ///   1) If curr starts with prev → return curr[prev.Length..]
-        ///   2) Head-align suffix(prev) with prefix(curr) → return curr[overlap..]
-        ///   3) Anywhere-anchor: find the longest suffix(prev) (≤ OVERLAP_PROBE) inside curr,
-        ///      return the part after that anchor.
-        ///   4) Otherwise, return empty (treat as reset/correction without new tail).
+        /// Replace history from 'start' to end with 'replacement'.
+        /// Equivalent to: history = history[..start] + replacement
         /// </summary>
-        private static string ComputeDeltaSincePrev(string prevMirror, string currMirror)
+        private static void ApplySplice(StringBuilder history, int start, string replacement)
         {
-            if (string.IsNullOrEmpty(currMirror)) return string.Empty;
-            if (string.IsNullOrEmpty(prevMirror)) return currMirror;
-
-            // 1) Pure append
-            if (currMirror.StartsWith(prevMirror, StringComparison.Ordinal))
-                return currMirror.Substring(prevMirror.Length);
-
-            // 2) Head alignment
-            {
-                int probePrev = Math.Min(prevMirror.Length, OVERLAP_PROBE);
-                int probeCurr = Math.Min(currMirror.Length, OVERLAP_PROBE);
-                ReadOnlySpan<char> tail = prevMirror.AsSpan(prevMirror.Length - probePrev, probePrev);
-                ReadOnlySpan<char> head = currMirror.AsSpan(0, probeCurr);
-                int overlap = LongestSuffixPrefix(tail, head);
-                if (overlap >= MIN_TRUSTED_OVERLAP && overlap < currMirror.Length)
-                    return currMirror.Substring(overlap);
-            }
-
-            // 3) Anywhere-anchor (handles head trims)
-            {
-                int maxK = Math.Min(OVERLAP_PROBE, Math.Min(prevMirror.Length, currMirror.Length));
-                for (int k = maxK; k >= MIN_TRUSTED_OVERLAP; k--)
-                {
-                    string pat = prevMirror.Substring(prevMirror.Length - k, k);
-                    int idx = currMirror.IndexOf(pat, StringComparison.Ordinal);
-                    if (idx >= 0)
-                    {
-                        int after = idx + k;
-                        if (after <= currMirror.Length)
-                            return currMirror.Substring(after);
-                    }
-                }
-            }
-
-            // 4) Nothing confidently new
-            return string.Empty;
+            if (start < 0) start = 0;
+            if (start > history.Length) start = history.Length;
+            history.Remove(start, history.Length - start);
+            history.Append(replacement);
         }
 
-        private static int LongestSuffixPrefix(ReadOnlySpan<char> aSuffix, ReadOnlySpan<char> bPrefix)
+        /// <summary>Check if StringBuilder ends with string (ordinal).</summary>
+        private static bool EndsWithOrdinal(StringBuilder sb, string s)
         {
-            int max = Math.Min(aSuffix.Length, bPrefix.Length);
+            if (s.Length == 0) return true;
+            if (sb.Length < s.Length) return false;
+            int start = sb.Length - s.Length;
+            for (int i = 0; i < s.Length; i++)
+                if (sb[start + i] != s[i]) return false;
+            return true;
+        }
+
+
+        // ---------- Tail-alignment helpers ----------
+
+        /// <summary>
+        /// Find the longest k such that suffix(history, k) == prefix(snapshot, k),
+        /// searching up to maxOverlap characters.
+        /// </summary>
+        private static int LongestSuffixPrefixTailVsHead(StringBuilder history, string snapshot, int maxOverlap)
+        {
+            int max = Math.Min(Math.Min(history.Length, snapshot.Length), maxOverlap);
             for (int len = max; len > 0; len--)
             {
-                if (aSuffix.Slice(aSuffix.Length - len, len).SequenceEqual(bPrefix.Slice(0, len)))
-                    return len;
+                // compare suffix of history with prefix of snapshot
+                int hStart = history.Length - len;
+                bool match = true;
+                for (int i = 0; i < len; i++)
+                {
+                    if (history[hStart + i] != snapshot[i]) { match = false; break; }
+                }
+                if (match) return len;
             }
             return 0;
         }
 
-        // ---------- Helpers ----------
+        // ---------- Normalization (minimal to avoid data loss) ----------
+        private static string Normalize(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
 
+            // Keep content stable. Only normalize newlines and spaces-before-newline.
+            s = s.Replace("\r\n", "\n").Replace('\r', '\n');
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"[ ]+\n", "\n");
+            // Do NOT collapse spaces/tabs or squeeze multiple newlines; WLC may rely on them.
+            return s;
+        }
+
+        // ---------- UIA helpers ----------
         private void OnTextChanged(object sender, AutomationEventArgs e)
         {
-            // Fire immediately; avoids waiting for next 200ms tick
             _tick?.Change(0, POLL_INTERVAL_MS);
         }
 
@@ -368,10 +381,7 @@ namespace StealthInterviewAssistant.Services
         {
             try
             {
-                _scrollTickMod++;
                 if (_textContainer == null) return;
-                if (_scrollTickMod % 10 != 0) return; // ~2s cadence
-
                 if (_textContainer.TryGetCurrentPattern(ScrollPattern.Pattern, out var spObj))
                 {
                     var sp = spObj as ScrollPattern;
@@ -398,32 +408,33 @@ namespace StealthInterviewAssistant.Services
                     if (sp != null && sp.Current.VerticallyScrollable)
                     {
                         sp.SetScrollPercent(sp.Current.HorizontallyScrollable ? 100 : ScrollPattern.NoScroll, 100);
-                        Thread.Sleep(50);
+                        Thread.Sleep(40);
                     }
                 }
             }
             catch { }
         }
 
-        private void NotifyUI(string text)
+        private void NotifyFullHistoryToUI()
         {
             try
             {
-                Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    OnNewText?.Invoke(text);
-                }));
+                string payload;
+                lock (_stateLock) { payload = _history.ToString(); }
+                Application.Current?.Dispatcher.BeginInvoke(new Action(() => OnNewText?.Invoke(payload)));
             }
             catch { }
         }
 
-        private string GetHistoryUnsafe()
+        // ---------- Logging ----------
+        private static string Preview(string s)
         {
-            // Call only under _stateLock OR immediately after building.
-            return _history.ToString();
+            if (string.IsNullOrEmpty(s)) return "";
+            var clean = s.Replace("\r", "\\r").Replace("\n", "\\n");
+            return clean.Length > 200 ? clean.Substring(0, 200) + "..." : clean;
         }
 
-        private void Log(string evt, string system, string info)
+        private void LogFrame(string evt, string system, string used, string appended, string details)
         {
             try
             {
@@ -432,12 +443,15 @@ namespace StealthInterviewAssistant.Services
                     var sb = new StringBuilder();
                     lock (_stateLock)
                     {
-                        sb.AppendLine($"=== {evt} - {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} ===");
+                        sb.AppendLine($"=== {evt} #{_frame} - {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} ===");
+                        sb.AppendLine($"Used: {used}");
                         sb.AppendLine($"System len: {system?.Length ?? 0}");
-                        sb.AppendLine($"Mirror len: {_mirror.Length}");
+                        sb.AppendLine($"System head: {Preview(system)}");
                         sb.AppendLine($"History len: {_history.Length}");
-                        sb.AppendLine($"SentPos: {_historySentPos}");
-                        sb.AppendLine($"Info: {info}");
+                        sb.AppendLine($"LastSentPos: {_lastSentPos}");
+                        sb.AppendLine($"Appended len: {appended?.Length ?? 0}");
+                        sb.AppendLine($"Appended head: {Preview(appended)}");
+                        sb.AppendLine($"Details: {details}");
                         sb.AppendLine();
                     }
                     File.AppendAllText(_logFilePath, sb.ToString(), Encoding.UTF8);
@@ -447,7 +461,6 @@ namespace StealthInterviewAssistant.Services
         }
 
         // --- Window discovery ---
-
         private AutomationElement? FindLiveCaptionsWindow()
         {
             try
@@ -515,12 +528,9 @@ namespace StealthInterviewAssistant.Services
                     FileName = "ms-settings:accessibility-hearing",
                     UseShellExecute = true
                 });
+                return true;
             }
-            catch
-            {
-                return false;
-            }
-            return true;
+            catch { return false; }
         }
 
         private void TryMinimizeWindow(AutomationElement? w)
