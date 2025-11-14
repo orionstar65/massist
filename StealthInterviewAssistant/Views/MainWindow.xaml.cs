@@ -50,6 +50,10 @@ namespace StealthInterviewAssistant.Views
         // Lock to prevent concurrent hotkey sends
         private readonly object _sendLock = new object();
         private bool _isSending = false;
+        
+        // Retry counter for hotkey registration
+        private int _hotkeyRegistrationRetryCount = 0;
+        private const int MAX_HOTKEY_REGISTRATION_RETRIES = 5;
 
         public MainWindow()
         {
@@ -60,6 +64,48 @@ namespace StealthInterviewAssistant.Views
         private void Window_SourceInitialized(object? sender, EventArgs e)
         {
             _helper = new WindowInteropHelper(this);
+            
+            // Wait for handle to be ready - retry if not available yet
+            if (_helper.Handle == IntPtr.Zero)
+            {
+                // Retry after a short delay
+                Dispatcher.BeginInvoke(new Action(() => InitializeHotkeysAndHooks()), 
+                    System.Windows.Threading.DispatcherPriority.Loaded);
+                return;
+            }
+            
+            InitializeHotkeysAndHooks();
+        }
+
+        /// <summary>
+        /// Initializes hotkeys, hooks, and related functionality once window handle is ready.
+        /// </summary>
+        private void InitializeHotkeysAndHooks()
+        {
+            if (_helper == null || _helper.Handle == IntPtr.Zero)
+            {
+                _hotkeyRegistrationRetryCount++;
+                if (_hotkeyRegistrationRetryCount < MAX_HOTKEY_REGISTRATION_RETRIES)
+                {
+                    // Retry after a short delay
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Window handle not ready, retrying hotkey registration ({_hotkeyRegistrationRetryCount}/{MAX_HOTKEY_REGISTRATION_RETRIES})...");
+                    Dispatcher.BeginInvoke(new Action(() => InitializeHotkeysAndHooks()), 
+                        System.Windows.Threading.DispatcherPriority.Loaded);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "Failed to initialize hotkeys: Window handle not available after maximum retries. " +
+                        "Some hotkey functionality may not work.");
+                }
+                return;
+            }
+            
+            // Reset retry counter on success
+            _hotkeyRegistrationRetryCount = 0;
+
+            // Create HwndSource only if handle is valid
             _hwndSource = HwndSource.FromHwnd(_helper.Handle);
             
             if (_hwndSource != null)
@@ -68,68 +114,8 @@ namespace StealthInterviewAssistant.Views
                 _hwndSource.AddHook(WndProc);
             }
 
-            // Register all global hotkeys
-            if (_helper != null)
-            {
-                // Send to WebView: Ctrl+Shift+/
-                // '/' key is VK_OEM_2 (0xBF) on US keyboard
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_SEND_TO_WEBVIEW,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    0xBF); // VK_OEM_2 for '/' key
-
-                // Window movement: Ctrl+Shift+J/K/L/I
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_MOVE_LEFT,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.J);
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_MOVE_RIGHT,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.L);
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_MOVE_UP,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.I);
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_MOVE_DOWN,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.K);
-
-                // Window width: Ctrl+Shift+R/T
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_WIDTH_DECREASE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.R);
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_WIDTH_INCREASE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.T);
-
-                // Window height: Ctrl+Shift+Q/A
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_HEIGHT_DECREASE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.Q);
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_HEIGHT_INCREASE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.A);
-
-                // Toggle visibility: Ctrl+Shift+H
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_TOGGLE_VISIBLE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.H);
-
-                // Exit: Ctrl+Shift+P
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_EXIT,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.P);
-
-                // Opacity control: Ctrl+Shift+Up/Down Arrow
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_OPACITY_INCREASE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.Up);
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_OPACITY_DECREASE,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.Down);
-
-                // Screenshot: Ctrl+Shift+.
-                NativeMethods.RegisterHotKey(_helper.Handle, HOTKEY_ID_SCREENSHOT,
-                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                    (uint)System.Windows.Forms.Keys.OemPeriod); // '.' key
-            }
+            // Register all global hotkeys with error checking
+            RegisterAllHotkeys();
             
             // Hide from Alt+Tab and taskbar
             HideFromAltTab();
@@ -145,6 +131,100 @@ namespace StealthInterviewAssistant.Views
             _resizeTimer = new System.Windows.Threading.DispatcherTimer();
             _resizeTimer.Interval = TimeSpan.FromMilliseconds(TIMER_INTERVAL_MS);
             _resizeTimer.Tick += ResizeTimer_Tick;
+        }
+
+        /// <summary>
+        /// Registers all global hotkeys with proper error checking and logging.
+        /// </summary>
+        private void RegisterAllHotkeys()
+        {
+            if (_helper == null || _helper.Handle == IntPtr.Zero)
+            {
+                System.Diagnostics.Debug.WriteLine("Window handle not ready for hotkey registration.");
+                return; // Don't retry here - InitializeHotkeysAndHooks handles retries
+            }
+
+            // Helper method to register with error checking
+            bool RegisterHotKeySafe(int id, uint modifiers, uint vk, string description)
+            {
+                bool success = NativeMethods.RegisterHotKey(_helper.Handle, id, modifiers, vk);
+                if (!success)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Failed to register hotkey {description} (ID: {id}). Error code: {error}");
+                    
+                    // Error 1409 = ERROR_HOTKEY_ALREADY_REGISTERED
+                    if (error == 1409)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Hotkey {description} is already registered by another application. " +
+                            "The hotkey may not work until the other application releases it.");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Successfully registered hotkey: {description}");
+                }
+                return success;
+            }
+
+            // Register all hotkeys with error checking
+            RegisterHotKeySafe(HOTKEY_ID_SEND_TO_WEBVIEW,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                0xBF, "Ctrl+Shift+/ (Send to WebView)");
+
+            RegisterHotKeySafe(HOTKEY_ID_MOVE_LEFT,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.J, "Ctrl+Shift+J (Move Left)");
+
+            RegisterHotKeySafe(HOTKEY_ID_MOVE_RIGHT,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.L, "Ctrl+Shift+L (Move Right)");
+
+            RegisterHotKeySafe(HOTKEY_ID_MOVE_UP,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.I, "Ctrl+Shift+I (Move Up)");
+
+            RegisterHotKeySafe(HOTKEY_ID_MOVE_DOWN,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.K, "Ctrl+Shift+K (Move Down)");
+
+            RegisterHotKeySafe(HOTKEY_ID_WIDTH_DECREASE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.R, "Ctrl+Shift+R (Width Decrease)");
+
+            RegisterHotKeySafe(HOTKEY_ID_WIDTH_INCREASE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.T, "Ctrl+Shift+T (Width Increase)");
+
+            RegisterHotKeySafe(HOTKEY_ID_HEIGHT_DECREASE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.Q, "Ctrl+Shift+Q (Height Decrease)");
+
+            RegisterHotKeySafe(HOTKEY_ID_HEIGHT_INCREASE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.A, "Ctrl+Shift+A (Height Increase)");
+
+            RegisterHotKeySafe(HOTKEY_ID_TOGGLE_VISIBLE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.H, "Ctrl+Shift+H (Toggle Visibility)");
+
+            RegisterHotKeySafe(HOTKEY_ID_EXIT,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.P, "Ctrl+Shift+P (Exit)");
+
+            RegisterHotKeySafe(HOTKEY_ID_OPACITY_INCREASE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.Up, "Ctrl+Shift+Up (Opacity Increase)");
+
+            RegisterHotKeySafe(HOTKEY_ID_OPACITY_DECREASE,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.Down, "Ctrl+Shift+Down (Opacity Decrease)");
+
+            RegisterHotKeySafe(HOTKEY_ID_SCREENSHOT,
+                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                (uint)System.Windows.Forms.Keys.OemPeriod, "Ctrl+Shift+. (Screenshot)");
         }
 
         private void InstallKeyboardHook()
@@ -928,20 +1008,48 @@ namespace StealthInterviewAssistant.Views
                     // Set DefaultBackgroundColor to transparent on the WebView2 control
                     StealthBrowser.DefaultBackgroundColor = System.Drawing.Color.Transparent;
                     
-                    // Also inject CSS to make body background transparent for web pages
-                    StealthBrowser.CoreWebView2.DOMContentLoaded += (s, args) =>
+                    // Also inject CSS to make body background transparent for web pages and force arrow cursor
+                    StealthBrowser.CoreWebView2.DOMContentLoaded += async (s, args) =>
                     {
                         string script = @"
                             (function() {
                                 if (document.body) {
                                     document.body.style.backgroundColor = 'transparent';
+                                    document.body.style.cursor = 'default';
                                 }
                                 if (document.documentElement) {
                                     document.documentElement.style.backgroundColor = 'transparent';
+                                    document.documentElement.style.cursor = 'default';
                                 }
+                                // Force arrow cursor on all elements
+                                var style = document.createElement('style');
+                                style.textContent = '* { cursor: default !important; }';
+                                document.head.appendChild(style);
                             })();
                         ";
-                        StealthBrowser.CoreWebView2.ExecuteScriptAsync(script);
+                        await StealthBrowser.CoreWebView2.ExecuteScriptAsync(script);
+                    };
+                    
+                    // Also inject cursor CSS on navigation completed
+                    StealthBrowser.CoreWebView2.NavigationCompleted += async (s, args) =>
+                    {
+                        if (args.IsSuccess)
+                        {
+                            string cursorScript = @"
+                                (function() {
+                                    var style = document.createElement('style');
+                                    style.textContent = '* { cursor: default !important; }';
+                                    if (document.head) {
+                                        document.head.appendChild(style);
+                                    } else {
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                            document.head.appendChild(style);
+                                        });
+                                    }
+                                })();
+                            ";
+                            await StealthBrowser.CoreWebView2.ExecuteScriptAsync(cursorScript);
+                        }
                     };
                 }
                 catch (Exception ex)
@@ -1601,8 +1709,8 @@ namespace StealthInterviewAssistant.Views
             {
                 try
                 {
-                    // Get the current URL from the TextBox directly (not from binding to avoid timing issues)
-                    string url = AddressBar?.Text?.Trim() ?? viewModel.BrowserUrl?.Trim() ?? string.Empty;
+                    // Get the current URL from the view model
+                    string url = viewModel.BrowserUrl?.Trim() ?? string.Empty;
                     if (string.IsNullOrWhiteSpace(url))
                         return;
 
@@ -1778,6 +1886,15 @@ namespace StealthInterviewAssistant.Views
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.BrowserUrl = "https://www.perplexity.ai";
+                NavigateToUrl();
+            }
+        }
+
+        private void GrokButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.BrowserUrl = "https://x.ai/grok";
                 NavigateToUrl();
             }
         }
@@ -2088,7 +2205,25 @@ namespace StealthInterviewAssistant.Views
                 NativeMethods.UnregisterHotKey(_helper.Handle, HOTKEY_ID_SCREENSHOT);
             }
 
-            // Remove hook
+            // Remove keyboard hook (CRITICAL: Prevents memory leak and conflicts)
+            if (_keyboardHook != IntPtr.Zero)
+            {
+                try
+                {
+                    NativeMethods.UnhookWindowsHookEx(_keyboardHook);
+                    System.Diagnostics.Debug.WriteLine("Keyboard hook uninstalled successfully");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error uninstalling keyboard hook: {ex.Message}");
+                }
+                finally
+                {
+                    _keyboardHook = IntPtr.Zero;
+                }
+            }
+
+            // Remove WndProc hook
             if (_hwndSource != null)
             {
                 _hwndSource.RemoveHook(WndProc);

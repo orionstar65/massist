@@ -1,2 +1,14 @@
 /StealthInterviewAssistant/bin
 /StealthInterviewAssistant/obj
+/StealthInterviewAssistant/bin/
+/StealthInterviewAssistant/obj/Debug
+/StealthInterviewAssistant/obj/Release
+/StealthInterviewAssistant/bin/Debug
+/StealthInterviewAssistant/bin/Release
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.exe
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.pdb
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.deps.json
+/StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.runtimeconfig.json

@@ -14,7 +14,8 @@
         Opacity="1.0"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded"
-        SourceInitialized="Window_SourceInitialized">
+        SourceInitialized="Window_SourceInitialized"
+        Cursor="Arrow">
     <Window.Resources>
         <!-- Animation for the main border -->
         <Storyboard x:Key="BorderFadeInAnimation">
@@ -57,7 +58,7 @@
             <Setter Property="Margin" Value="5,0"/>
             <Setter Property="Width" Value="28"/>
             <Setter Property="Height" Value="28"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="RenderTransform">
                 <Setter.Value>
@@ -167,7 +168,7 @@
             <Setter Property="MinWidth" Value="60"/>
             <Setter Property="Height" Value="28"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -224,7 +225,7 @@
             <Setter Property="MinWidth" Value="60"/>
             <Setter Property="Height" Value="28"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -281,7 +282,7 @@
             <Setter Property="Height" Value="28"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -350,11 +351,12 @@
             Background="Transparent"
             MouseDown="Border_MouseDown"
             Opacity="1.0"
-            RenderTransformOrigin="0.5,0.5">
+            RenderTransformOrigin="0.5,0.5"
+            Cursor="Arrow">
         <Border.RenderTransform>
             <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
         </Border.RenderTransform>
-        <Grid>
+        <Grid Cursor="Arrow">
             <!-- Dark dashed border (static) -->
             <Rectangle x:Name="BorderPath"
                        StrokeThickness="2"
@@ -379,15 +381,15 @@
                        RadiusY="8"
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"/>
-            <Grid x:Name="ContentGrid" MouseDown="Grid_MouseDown" Visibility="Hidden">
+            <Grid x:Name="ContentGrid" MouseDown="Grid_MouseDown" Visibility="Hidden" Cursor="Arrow">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0">
+            <Grid Grid.Row="0" Cursor="Arrow">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="CaptionColumn" Width="5*"/>
-                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="4"/>
                 <ColumnDefinition Width="5*"/>
             </Grid.ColumnDefinitions>
         
@@ -401,11 +403,12 @@
                 CornerRadius="8"
                 Margin="10"
                 Opacity="0"
-                RenderTransformOrigin="0.5,0.5">
+                RenderTransformOrigin="0.5,0.5"
+                Cursor="Arrow">
             <Border.RenderTransform>
                 <TranslateTransform X="-30"/>
             </Border.RenderTransform>
-            <Grid>
+            <Grid Cursor="Arrow">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -413,41 +416,106 @@
                 </Grid.RowDefinitions>
                 
                 <!-- Buttons Row -->
-                <StackPanel Grid.Row="0" 
-                           Orientation="Horizontal" 
-                           Margin="10,10,10,5"
-                           HorizontalAlignment="Left">
-                    <Button Command="{Binding StartCaptionsCommand}"
-                            Width="28" Height="28"
-                            ToolTip="{Binding StartStopButtonTooltip}">
-                        <TextBlock Text="{Binding StartStopButtonIcon}" FontSize="12" FontFamily="Segoe UI Symbol"/>
-                    </Button>
-                    <Button Command="{Binding CopyDeltaCommand}"
-                            Width="28" Height="28"
-                            ToolTip="Copy new text since last copy">
-                        <TextBlock Text="📋" FontSize="12"/>
-                    </Button>
-                    <Button Command="{Binding ClearBufferCommand}"
-                            Width="28" Height="28"
-                            ToolTip="Clear transcript buffer">
-                        <TextBlock Text="✖" FontSize="12" FontFamily="Segoe UI Symbol"/>
-                    </Button>
-                    <Button Command="{Binding ToggleExcludeCaptureCommand}"
-                            Width="28" Height="28"
-                            ToolTip="{Binding ToggleExcludeButtonContent}">
-                        <TextBlock Text="👁" FontSize="12"/>
-                    </Button>
-                    <Button x:Name="ToggleSystemCaptionsButton"
-                            Click="ToggleSystemCaptionsButton_Click"
-                            Width="28" Height="28"
-                            ToolTip="Hide/Show Windows Live Captions window">
-                        <TextBlock Text="📺" FontSize="12"/>
-                    </Button>
+                <Grid Grid.Row="0" 
+                      Margin="10,10,10,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
                     
-                    <!-- Status Light Indicator -->
-                    <Ellipse x:Name="StatusLight"
-                            Width="10" Height="10"
-                            Margin="10,0,0,0"
+                    <!-- Left side: Buttons and Slider -->
+                    <StackPanel Grid.Column="0"
+                               Orientation="Horizontal" 
+                               HorizontalAlignment="Left">
+                        <Button Command="{Binding StartCaptionsCommand}"
+                                Width="28" Height="28"
+                                ToolTip="{Binding StartStopButtonTooltip}">
+                            <TextBlock Text="{Binding StartStopButtonIcon}" FontSize="12" FontFamily="Segoe UI Symbol"/>
+                        </Button>
+                        <Button Command="{Binding CopyDeltaCommand}"
+                                Width="28" Height="28"
+                                ToolTip="Copy new text since last copy">
+                            <TextBlock Text="📋" FontSize="12"/>
+                        </Button>
+                        <Button Command="{Binding ClearBufferCommand}"
+                                Width="28" Height="28"
+                                ToolTip="Clear transcript buffer">
+                            <TextBlock Text="✖" FontSize="12" FontFamily="Segoe UI Symbol"/>
+                        </Button>
+                        
+                        <!-- Font Size Slider -->
+                        <Border Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                Margin="10,0,0,0">
+                            <StackPanel Orientation="Horizontal"
+                                       VerticalAlignment="Center">
+                                <Slider x:Name="CaptionTextSizeSlider"
+                                        Minimum="12"
+                                        Maximum="18"
+                                        Value="15"
+                                        Width="80"
+                                        Height="16"
+                                        VerticalAlignment="Center"
+                                        ValueChanged="CaptionTextSizeSlider_ValueChanged"
+                                        ToolTip="Adjust caption text font size">
+                                    <Slider.Style>
+                                        <Style TargetType="Slider">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="#4EC9B0"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Slider">
+                                                        <Grid VerticalAlignment="Center">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="13"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+                                                            <Track Grid.Row="1" x:Name="PART_Track" VerticalAlignment="Center">
+                                                                <Track.DecreaseRepeatButton>
+                                                                    <RepeatButton Style="{StaticResource RepeatButtonStyle}" Command="Slider.DecreaseLarge" />
+                                                                </Track.DecreaseRepeatButton>
+                                                                <Track.Thumb>
+                                                                    <Thumb x:Name="Thumb" Width="13" Height="13" VerticalAlignment="Center">
+                                                                        <Thumb.Template>
+                                                                            <ControlTemplate TargetType="Thumb">
+                                                                                <Ellipse Fill="#4EC9B0" Stroke="#80FFFFFF" StrokeThickness="1.5"/>
+                                                                            </ControlTemplate>
+                                                                        </Thumb.Template>
+                                                                    </Thumb>
+                                                                </Track.Thumb>
+                                                                <Track.IncreaseRepeatButton>
+                                                                    <RepeatButton Style="{StaticResource RepeatButtonStyle}" Command="Slider.IncreaseLarge" />
+                                                                </Track.IncreaseRepeatButton>
+                                                            </Track>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Slider.Style>
+                                </Slider>
+                                <TextBlock x:Name="CaptionTextSizeLabel"
+                                          Text="15"
+                                          Foreground="#4EC9B0"
+                                          FontSize="12"
+                                          FontWeight="Bold"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"
+                                          MinWidth="25"
+                                          TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    
+                    <!-- Right side: Status Light Indicator -->
+                    <Ellipse Grid.Column="2"
+                            x:Name="StatusLight"
+                            Width="15" Height="15"
                             VerticalAlignment="Center"
                             HorizontalAlignment="Right">
                         <Ellipse.Fill>
@@ -455,92 +523,21 @@
                         </Ellipse.Fill>
                         <Ellipse.Effect>
                             <DropShadowEffect Color="{Binding StatusLightColor}" 
-                                             BlurRadius="8" 
+                                             BlurRadius="10" 
                                              ShadowDepth="0"
-                                             Opacity="0.8"/>
+                                             Opacity="0.7"/>
                         </Ellipse.Effect>
                         <Ellipse.ToolTip>
                             <TextBlock Text="{Binding StatusMessage}"/>
                         </Ellipse.ToolTip>
                     </Ellipse>
-                </StackPanel>
+                </Grid>
                 
                 <!-- Status and Hotkey -->
                 <StackPanel Grid.Row="1" 
                            Orientation="Vertical"
                            Margin="10,0,10,5">
-                    <!-- Caption Text Size Control Bar -->
-                    <StackPanel Orientation="Horizontal" 
-                               Margin="0,5,0,0"
-                               VerticalAlignment="Center">
-                        <TextBlock Text="Text Size:" 
-                                  Foreground="#B0B0B0"
-                                  FontSize="10"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,8,0"
-                                  FontWeight="SemiBold"/>
-                        <Border Background="Transparent"
-                                BorderBrush="Transparent"
-                                BorderThickness="0"
-                                Padding="0"
-                                VerticalAlignment="Center">
-                            <Slider x:Name="CaptionTextSizeSlider"
-                                    Minimum="8"
-                                    Maximum="24"
-                                    Value="15"
-                                    Width="120"
-                                    Height="16"
-                                    VerticalAlignment="Center"
-                                    ValueChanged="CaptionTextSizeSlider_ValueChanged"
-                                    ToolTip="Adjust caption text font size">
-                                <Slider.Style>
-                                    <Style TargetType="Slider">
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Setter Property="Foreground" Value="#4EC9B0"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="Slider">
-                                                    <Grid VerticalAlignment="Center">
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="10"/>
-                                                            <RowDefinition Height="Auto"/>
-                                                        </Grid.RowDefinitions>
-                                                        <Track Grid.Row="1" x:Name="PART_Track" VerticalAlignment="Center">
-                                                            <Track.DecreaseRepeatButton>
-                                                                <RepeatButton Style="{StaticResource RepeatButtonStyle}" Command="Slider.DecreaseLarge" />
-                                                            </Track.DecreaseRepeatButton>
-                                                            <Track.Thumb>
-                                                                <Thumb x:Name="Thumb" Width="10" Height="10" VerticalAlignment="Center">
-                                                                    <Thumb.Template>
-                                                                        <ControlTemplate TargetType="Thumb">
-                                                                            <Ellipse Fill="#4EC9B0" Stroke="#80FFFFFF" StrokeThickness="1.5"/>
-                                                                        </ControlTemplate>
-                                                                    </Thumb.Template>
-                                                                </Thumb>
-                                                            </Track.Thumb>
-                                                            <Track.IncreaseRepeatButton>
-                                                                <RepeatButton Style="{StaticResource RepeatButtonStyle}" Command="Slider.IncreaseLarge" />
-                                                            </Track.IncreaseRepeatButton>
-                                                        </Track>
-                                                    </Grid>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </Slider.Style>
-                            </Slider>
-                        </Border>
-                        <TextBlock x:Name="CaptionTextSizeLabel"
-                                  Text="15"
-                                  Foreground="#4EC9B0"
-                                  FontSize="11"
-                                  FontWeight="Bold"
-                                  VerticalAlignment="Center"
-                                  Margin="8,0,0,0"
-                                  MinWidth="25"
-                                  TextAlignment="Center"/>
-                    </StackPanel>
+                    <!-- Text Size Control removed - moved to button groups area -->
                 </StackPanel>
                 
                 <!-- Caption Box -->
@@ -617,11 +614,12 @@
                 CornerRadius="8"
                 Margin="10"
                 Opacity="0"
-                RenderTransformOrigin="0.5,0.5">
+                RenderTransformOrigin="0.5,0.5"
+                Cursor="Arrow">
             <Border.RenderTransform>
                 <TranslateTransform X="30"/>
             </Border.RenderTransform>
-            <Grid>
+            <Grid Cursor="Arrow">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -634,55 +632,65 @@
                        BorderThickness="0,0,0,1"
                        CornerRadius="8,8,0,0"
                        Padding="10">
-                    <Grid>
+                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
+                            <!-- <ColumnDefinition Width="*"/> -->
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <!-- <ColumnDefinition Width="Auto"/> -->
                         </Grid.ColumnDefinitions>
                         
-                        <TextBox Grid.Column="0" 
+                        <!-- <TextBox Grid.Column="0" 
                                 x:Name="AddressBar"
                                 Text="{Binding BrowserUrl, UpdateSourceTrigger=LostFocus}"
                                 Margin="0,0,10,0"
-                                KeyDown="AddressBar_KeyDown"/>
+                                KeyDown="AddressBar_KeyDown"/> -->
                         
-                        <Button Grid.Column="1" 
+                        <Button Grid.Column="0" 
                                x:Name="ChatGPTButton"
                                Click="ChatGPTButton_Click"
                                Width="28" Height="28"
                                Margin="0,0,5,0"
                                ToolTip="Open ChatGPT">
-                            <TextBlock Text="💬" FontSize="12"/>
+                            <TextBlock Text="CG" FontSize="12"/>
                         </Button>
                         
-                        <Button Grid.Column="2" 
+                        <Button Grid.Column="1" 
                                x:Name="DeepSeekButton"
                                Click="DeepSeekButton_Click"
                                Width="28" Height="28"
                                Margin="0,0,5,0"
                                ToolTip="Open DeepSeek">
-                            <TextBlock Text="🔍" FontSize="12"/>
+                            <TextBlock Text="D" FontSize="12"/>
                         </Button>
                         
-                        <Button Grid.Column="3" 
+                        <Button Grid.Column="2" 
                                x:Name="PerplexityButton"
                                Click="PerplexityButton_Click"
                                Width="28" Height="28"
                                Margin="0,0,5,0"
                                ToolTip="Open Perplexity">
-                            <TextBlock Text="🤖" FontSize="12"/>
+                            <TextBlock Text="P" FontSize="12"/>
                         </Button>
                         
-                        <Button Grid.Column="4" 
+                        <Button Grid.Column="3" 
+                               x:Name="GrokButton"
+                               Click="GrokButton_Click"
+                               Width="28" Height="28"
+                               Margin="0,0,0,0"
+                               ToolTip="Open Grok">
+                            <TextBlock Text="G" FontSize="12"/>
+                        </Button>
+                        
+                        <!-- <Button Grid.Column="4" 
                                x:Name="GoButton"
                                Click="GoButton_Click"
                                Width="28" Height="28"
                                ToolTip="Navigate">
                             <TextBlock Text="→" FontSize="12" FontFamily="Segoe UI Symbol"/>
-                        </Button>
+                        </Button> -->
                     </Grid>
                 </Border>
                 
@@ -690,9 +698,11 @@
                 <Border Grid.Row="1" 
                        Background="Transparent" 
                        BorderThickness="0"
-                       Margin="10">
+                       Margin="10"
+                       Cursor="Arrow">
                     <wv2:WebView2 x:Name="StealthBrowser" 
-                                  Source="{Binding BrowserUrl}"/>
+                                  Source="{Binding BrowserUrl}"
+                                  Cursor="Arrow"/>
                 </Border>
             </Grid>
         </Border>
@@ -732,7 +742,7 @@
                                          Checked="ToggleButton_Checked"
                                          Unchecked="ToggleButton_Unchecked"/>
                             <ToggleButton x:Name="ToggleInteresting"
-                                         Content="Interesting - light Funny"
+                                         Content="Funny"
                                          Style="{StaticResource ToggleButtonStyle}"
                                          Checked="ToggleButton_Checked"
                                          Unchecked="ToggleButton_Unchecked"/>
@@ -752,7 +762,7 @@
                                          Checked="ToggleButton_Checked"
                                          Unchecked="ToggleButton_Unchecked"/>
                             <ToggleButton x:Name="ToggleMentioning"
-                                         Content="Mentioning specific thing(s)"
+                                         Content="Specific"
                                          Style="{StaticResource ToggleButtonStyle}"
                                          Checked="ToggleButton_Checked"
                                          Unchecked="ToggleButton_Unchecked"/>
@@ -799,18 +809,20 @@
                                     Style="{StaticResource RadioButtonStyle}"
                                     GroupName="DurationGroup"
                                     HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,4"/>
+                                    Margin="0,4,0,4"
+                                    IsChecked="True"/>
                         <RadioButton x:Name="Radio1To2Mins"
                                     Content="1-2mins"
                                     Style="{StaticResource RadioButtonStyle}"
                                     GroupName="DurationGroup"
                                     HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,4"/>
+                                    Margin="0,4,0,4"/>
                         <RadioButton x:Name="Radio2To3Mins"
                                     Content="2-3mins"
                                     Style="{StaticResource RadioButtonStyle}"
                                     GroupName="DurationGroup"
-                                    HorizontalAlignment="Stretch"/>
+                                    HorizontalAlignment="Stretch"
+                                    Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
                 
