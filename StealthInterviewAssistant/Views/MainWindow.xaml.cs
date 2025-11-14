@@ -279,14 +279,15 @@ namespace StealthInterviewAssistant.Views
             // Hide content panels initially, but keep MainBorder visible so label can show
             // Set MainBorder opacity to 1.0 so the label inside it is visible
             // Start with MainBorder at small scale (0.7) - it will zoom in during label animation
-            if (MainBorder != null)
+            // Initialize BorderPath at small scale for animation
+            var borderPath = this.FindName("BorderPath") as System.Windows.Shapes.Rectangle;
+            if (borderPath != null)
             {
-                MainBorder.Opacity = 1.0;
-                var borderTransform = MainBorder.RenderTransform as System.Windows.Media.ScaleTransform;
-                if (borderTransform != null)
+                var borderPathTransform = borderPath.RenderTransform as System.Windows.Media.ScaleTransform;
+                if (borderPathTransform != null)
                 {
-                    borderTransform.ScaleX = 0.7;
-                    borderTransform.ScaleY = 0.7;
+                    borderPathTransform.ScaleX = 0.1;
+                    borderPathTransform.ScaleY = 0.1;
                 }
             }
             
@@ -382,63 +383,12 @@ namespace StealthInterviewAssistant.Views
                 {
                     try
                     {
-                        // Animate main border - initial fade in
+                        // Start continuous rotating light animation for border
                         var border = this.FindName("MainBorder") as System.Windows.FrameworkElement;
-                        if (border == null)
+                        if (border != null)
                         {
-                            System.Diagnostics.Debug.WriteLine("MainBorder not found, skipping animation");
-                            return;
-                        }
-
-                        var fadeAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                        {
-                            From = 0.0,
-                            To = 1.0,
-                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.8)),
-                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
-                        };
-
-                        var scaleXAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                        {
-                            From = 0.90,
-                            To = 1.0,
-                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.8)),
-                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
-                        };
-
-                        var scaleYAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                        {
-                            From = 0.90,
-                            To = 1.0,
-                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.8)),
-                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
-                        };
-
-                        border.BeginAnimation(System.Windows.UIElement.OpacityProperty, fadeAnimation);
-                        
-                        var transform = border.RenderTransform as System.Windows.Media.ScaleTransform;
-                        if (transform == null)
-                        {
-                            transform = new System.Windows.Media.ScaleTransform(0.90, 0.90);
-                            border.RenderTransform = transform;
-                            border.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-                        }
-                        
-                        transform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scaleXAnimation);
-                        transform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scaleYAnimation);
-
-                        // Start continuous rotating light animation after initial animation completes
-                        // Use a timer to delay the continuous animation
-                        var timer = new System.Windows.Threading.DispatcherTimer
-                        {
-                            Interval = TimeSpan.FromSeconds(0.9)
-                        };
-                        timer.Tick += (s, e) =>
-                        {
-                            timer.Stop();
                             StartContinuousBorderAnimation(border);
-                        };
-                        timer.Start();
+                        }
 
                     // Animate left panel (slide in from left)
                     var leftPanel = this.FindName("LeftPanel") as System.Windows.FrameworkElement;
@@ -497,6 +447,57 @@ namespace StealthInterviewAssistant.Views
                         if (rightTransform != null)
                         {
                             rightTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, rightSlide);
+                        }
+                    }
+
+                    // Animate split handler (fade in from middle to top and bottom)
+                    var splitterRectangle = this.FindName("SplitterRectangle") as System.Windows.Shapes.Rectangle;
+                    if (splitterRectangle != null)
+                    {
+                        // Create a gradient brush for the splitter (vertical gradient from top to bottom)
+                        var gradientBrush = new System.Windows.Media.LinearGradientBrush();
+                        gradientBrush.StartPoint = new System.Windows.Point(0, 0);
+                        gradientBrush.EndPoint = new System.Windows.Point(0, 1);
+                        gradientBrush.MappingMode = System.Windows.Media.BrushMappingMode.RelativeToBoundingBox;
+
+                        // Gradient: transparent at top, visible in middle, transparent at bottom
+                        gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                            System.Windows.Media.Color.FromArgb(0, 0x3F, 0x3F, 0x46), 0.0)); // Transparent at top
+                        gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                            System.Windows.Media.Color.FromArgb(128, 0x3F, 0x3F, 0x46), 0.3)); // Fade in
+                        gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                            System.Windows.Media.Color.FromArgb(180, 0x3F, 0x3F, 0x46), 0.5)); // Most visible in middle
+                        gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                            System.Windows.Media.Color.FromArgb(128, 0x3F, 0x3F, 0x46), 0.7)); // Fade out
+                        gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                            System.Windows.Media.Color.FromArgb(0, 0x3F, 0x3F, 0x46), 1.0)); // Transparent at bottom
+
+                        // Set the gradient brush as the stroke brush
+                        splitterRectangle.Stroke = gradientBrush;
+
+                        var splitterFade = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 0.0,
+                            To = 1.0,
+                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.8)),
+                            BeginTime = TimeSpan.FromSeconds(0.4),
+                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+
+                        var splitterScale = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 0.0,
+                            To = 1.0,
+                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.8)),
+                            BeginTime = TimeSpan.FromSeconds(0.4),
+                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+
+                        splitterRectangle.BeginAnimation(System.Windows.UIElement.OpacityProperty, splitterFade);
+                        var splitterTransform = splitterRectangle.RenderTransform as System.Windows.Media.ScaleTransform;
+                        if (splitterTransform != null)
+                        {
+                            splitterTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, splitterScale);
                         }
                     }
 
@@ -664,46 +665,124 @@ namespace StealthInterviewAssistant.Views
         private System.Windows.Media.Animation.DoubleAnimation? _zoomInXAnimation;
         private System.Windows.Media.Animation.DoubleAnimation? _zoomInYAnimation;
 
+        private void StartAnswerButtonNeonLightAnimation()
+        {
+            try
+            {
+                var neonLight = this.FindName("AnswerButtonNeonLight") as System.Windows.Shapes.Rectangle;
+                if (neonLight == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("AnswerButtonNeonLight not found");
+                    return;
+                }
+
+                // Create a gradient brush with a small bright neon segment
+                var gradientBrush = new System.Windows.Media.LinearGradientBrush();
+                gradientBrush.StartPoint = new System.Windows.Point(0, 0);
+                gradientBrush.EndPoint = new System.Windows.Point(1, 0);
+                gradientBrush.MappingMode = System.Windows.Media.BrushMappingMode.RelativeToBoundingBox;
+                gradientBrush.SpreadMethod = System.Windows.Media.GradientSpreadMethod.Repeat;
+
+                // Most of the gradient is transparent
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.0)); // Transparent at start
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.35)); // Transparent before first light
+                
+                // First small bright neon segment (about 8% of the gradient)
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.37)); // Fade in
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.40)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.42)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.45)); // Fade out
+                
+                // Transparent between lights
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.47)); // Transparent after first light
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.85)); // Transparent before second light
+                
+                // Second small bright neon segment (about 8% of the gradient)
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.87)); // Fade in
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.90)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.92)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.95)); // Fade out
+                
+                // Rest is transparent
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.97)); // Transparent after second light
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 1.0)); // Transparent at end
+
+                // Create a RotateTransform for the gradient (rotates around center)
+                var rotateTransform = new System.Windows.Media.RotateTransform(0);
+                rotateTransform.CenterX = 0.5;
+                rotateTransform.CenterY = 0.5;
+                gradientBrush.RelativeTransform = rotateTransform;
+
+                // Set the gradient brush as the stroke brush
+                neonLight.Stroke = gradientBrush;
+
+                // Create continuous rotation animation (0 to 360 degrees, repeating forever)
+                var rotationAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 0,
+                    To = 360,
+                    Duration = new System.Windows.Duration(TimeSpan.FromSeconds(3.0)), // 3 seconds per rotation
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                };
+
+                rotateTransform.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty, rotationAnimation);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error starting Answer button neon light animation: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
         private void StartStartupAnimation()
         {
             try
             {
                 if (StartupLabelContainer == null) return;
 
-                // Start MainBorder zoom-in animation (from small to normal size over 2 seconds)
-                if (MainBorder != null)
+                // Animate only the BorderPath rectangle from smallest to correct size
+                var borderPath = this.FindName("BorderPath") as System.Windows.Shapes.Rectangle;
+                if (borderPath != null)
                 {
-                    var borderTransform = MainBorder.RenderTransform as System.Windows.Media.ScaleTransform;
-                    if (borderTransform == null)
+                    var borderPathTransform = borderPath.RenderTransform as System.Windows.Media.ScaleTransform;
+                    if (borderPathTransform == null)
                     {
-                        borderTransform = new System.Windows.Media.ScaleTransform(0.7, 0.7);
-                        MainBorder.RenderTransform = borderTransform;
-                    }
-                    else
-                    {
-                        borderTransform.ScaleX = 0.7;
-                        borderTransform.ScaleY = 0.7;
+                        borderPathTransform = new System.Windows.Media.ScaleTransform(0.1, 0.1);
+                        borderPath.RenderTransform = borderPathTransform;
                     }
 
-                    // Zoom in animation (2 seconds - same as label display time)
-                    _zoomInXAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    // Scale animation (2 seconds - same as label display time)
+                    var scaleXAnimation = new System.Windows.Media.Animation.DoubleAnimation
                     {
-                        From = 0.7,
+                        From = 0.1,
                         To = 1.0,
                         Duration = new System.Windows.Duration(TimeSpan.FromSeconds(2.0)),
                         EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
                     };
 
-                    _zoomInYAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    var scaleYAnimation = new System.Windows.Media.Animation.DoubleAnimation
                     {
-                        From = 0.7,
+                        From = 0.1,
                         To = 1.0,
                         Duration = new System.Windows.Duration(TimeSpan.FromSeconds(2.0)),
                         EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
                     };
 
-                    borderTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, _zoomInXAnimation);
-                    borderTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, _zoomInYAnimation);
+                    borderPathTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scaleXAnimation);
+                    borderPathTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scaleYAnimation);
                 }
 
                 // Create fade in animation (0.5 seconds)
@@ -772,20 +851,19 @@ namespace StealthInterviewAssistant.Views
                             StartupLabelContainer.Visibility = Visibility.Hidden;
                         }
 
-                        // Stop the zoom-in animation to prevent conflicts
-                        if (MainBorder != null)
+                        // Ensure BorderPath is at correct scale
+                        var borderPath = this.FindName("BorderPath") as System.Windows.Shapes.Rectangle;
+                        if (borderPath != null)
                         {
-                            var borderTransform = MainBorder.RenderTransform as System.Windows.Media.ScaleTransform;
-                            if (borderTransform != null)
+                            var borderPathTransform = borderPath.RenderTransform as System.Windows.Media.ScaleTransform;
+                            if (borderPathTransform != null)
                             {
                                 // Stop animations and ensure scale is at 1.0
-                                borderTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, null);
-                                borderTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, null);
-                                borderTransform.ScaleX = 1.0;
-                                borderTransform.ScaleY = 1.0;
+                                borderPathTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, null);
+                                borderPathTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, null);
+                                borderPathTransform.ScaleX = 1.0;
+                                borderPathTransform.ScaleY = 1.0;
                             }
-                            // Border is already at scale 1.0, just ensure opacity
-                            MainBorder.Opacity = 1.0;
                         }
 
                         // Show the content panels
@@ -794,8 +872,11 @@ namespace StealthInterviewAssistant.Views
                             ContentGrid.Visibility = Visibility.Visible;
                         }
                         
-                        // Start the border animation (will animate panels, border is already at correct scale)
+                        // Start the border animation (will animate panels)
                         StartBorderAnimation();
+                        
+                        // Start Answer button neon light animation
+                        StartAnswerButtonNeonLightAnimation();
                     };
 
                     StartupLabelContainer.BeginAnimation(System.Windows.UIElement.OpacityProperty, fadeOut);
@@ -1847,7 +1928,7 @@ namespace StealthInterviewAssistant.Views
         {
             var activeValues = new List<string>();
             
-            if (ToggleConcised?.IsChecked == true) activeValues.Add("Concised");
+            if (ToggleProfessional?.IsChecked == true) activeValues.Add("Professional");
             if (ToggleInteresting?.IsChecked == true) activeValues.Add("Interesting - light Funny");
             if (ToggleSTAR?.IsChecked == true) activeValues.Add("STAR");
             if (ToggleSharp?.IsChecked == true) activeValues.Add("Sharp");
@@ -1855,9 +1936,20 @@ namespace StealthInterviewAssistant.Views
             if (ToggleMentioning?.IsChecked == true) activeValues.Add("Mentioning specific thing(s)");
             if (ToggleStoryMode?.IsChecked == true) activeValues.Add("Story mode");
             if (ToggleImpactful?.IsChecked == true) activeValues.Add("Impactful");
-            if (ToggleTechStack?.IsChecked == true) activeValues.Add("Tech stack versions at the next of it if the answer includes tech stacks");
+            if (ToggleTechStack?.IsChecked == true) activeValues.Add("mentioning Tech stack versions at the next of each tech stacks inside the answer if the answer explains technical problem");
+            if (ToggleDetailed?.IsChecked == true) activeValues.Add("Detailed");
+            if (ToggleStepByStep?.IsChecked == true) activeValues.Add("Step-by-Step");
             
             return activeValues;
+        }
+
+        // Get selected radio button value for duration
+        private string? GetSelectedDurationValue()
+        {
+            if (Radio1Min?.IsChecked == true) return "for 1 min";
+            if (Radio1To2Mins?.IsChecked == true) return "for 1-2mins";
+            if (Radio2To3Mins?.IsChecked == true) return "for 2-3mins";
+            return null;
         }
 
         // Send text with prompt wrapper
@@ -1898,11 +1990,18 @@ namespace StealthInterviewAssistant.Views
                     if (includeToggleModifiers)
                     {
                         var toggleValues = GetActiveToggleValues();
-                        if (toggleValues.Count > 0)
+                        var durationValue = GetSelectedDurationValue();
+                        
+                        if (toggleValues.Count > 0 || durationValue != null)
                         {
-                            string toggleString = string.Join(", ", toggleValues);
+                            var allValues = new List<string>(toggleValues);
+                            if (durationValue != null)
+                            {
+                                allValues.Add(durationValue);
+                            }
+                            string toggleString = string.Join(", ", allValues);
                             // Replace "answer this" with "Answer this with {toggles} answer"
-                            finalPrompt = $"Answer this with {toggleString} answer";
+                            finalPrompt = $"Answer for this interviewer's speech. [Tone & Length]: {toggleString}.";
                         }
                     }
 

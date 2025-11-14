@@ -45,7 +45,7 @@ namespace StealthInterviewAssistant {
         /// </summary>
         [System.STAThreadAttribute()]
         [System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "8.0.21.0")]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "8.0.22.0")]
         public static void Main() {
             StealthInterviewAssistant.App app = new StealthInterviewAssistant.App();
             app.Run();

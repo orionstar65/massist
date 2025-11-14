@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("StealthInterviewAssistant")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3ca443c4edd8d8eb76f8e7cd346dfd770b8819ec")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d6c14031dd58f25c84ff296e0f16c7cab4d98b55")]
 [assembly: System.Reflection.AssemblyProductAttribute("StealthInterviewAssistant")]
 [assembly: System.Reflection.AssemblyTitleAttribute("StealthInterviewAssistant")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,0 +1,125 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "StealthInterviewAssistant/1.0.0": {
+        "dependencies": {
+          "Microsoft.UI.Xaml": "2.8.6",
+          "Microsoft.Web.WebView2": "1.0.2849.39",
+          "Microsoft.Web.WebView2.Core": "1.0.2849.39",
+          "Microsoft.Web.WebView2.WinForms": "1.0.2849.39",
+          "Microsoft.Web.WebView2.Wpf": "1.0.2849.39",
+          "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.18362.56"
+        },
+        "runtime": {
+          "StealthInterviewAssistant.dll": {}
+        }
+      },
+      "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.18362.56": {
+        "runtime": {
+          "Microsoft.Windows.SDK.NET.dll": {
+            "assemblyVersion": "10.0.18362.38",
+            "fileVersion": "10.0.18362.55"
+          },
+          "WinRT.Runtime.dll": {
+            "assemblyVersion": "2.2.0.0",
+            "fileVersion": "2.2.0.48161"
+          }
+        }
+      },
+      "Microsoft.UI.Xaml/2.8.6": {
+        "dependencies": {
+          "Microsoft.Web.WebView2": "1.0.2849.39"
+        }
+      },
+      "Microsoft.Web.WebView2/1.0.2849.39": {
+        "runtimeTargets": {
+          "runtimes/win-arm64/native/WebView2Loader.dll": {
+            "rid": "win-arm64",
+            "assetType": "native",
+            "fileVersion": "1.0.2849.39"
+          },
+          "runtimes/win-x64/native/WebView2Loader.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "1.0.2849.39"
+          },
+          "runtimes/win-x86/native/WebView2Loader.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "1.0.2849.39"
+          }
+        }
+      },
+      "Microsoft.Web.WebView2.Core/1.0.2849.39": {
+        "runtime": {
+          "Microsoft.Web.WebView2.Core.dll": {
+            "assemblyVersion": "1.0.2849.39",
+            "fileVersion": "1.0.2849.39"
+          }
+        }
+      },
+      "Microsoft.Web.WebView2.WinForms/1.0.2849.39": {
+        "runtime": {
+          "Microsoft.Web.WebView2.WinForms.dll": {
+            "assemblyVersion": "1.0.2849.39",
+            "fileVersion": "1.0.2849.39"
+          }
+        }
+      },
+      "Microsoft.Web.WebView2.Wpf/1.0.2849.39": {
+        "runtime": {
+          "Microsoft.Web.WebView2.Wpf.dll": {
+            "assemblyVersion": "1.0.2849.39",
+            "fileVersion": "1.0.2849.39"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "StealthInterviewAssistant/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.18362.56": {
+      "type": "runtimepack",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.UI.Xaml/2.8.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kdfCnoV/1bOu06EZcGYhQNvVjKWfsR5WRf6ftXtPbx1j4Q+ltMGNBW9TUTcscpt7qpwb6pB4R4KEjGGliWefzw==",
+      "path": "microsoft.ui.xaml/2.8.6",
+      "hashPath": "microsoft.ui.xaml.2.8.6.nupkg.sha512"
+    },
+    "Microsoft.Web.WebView2/1.0.2849.39": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-mWyurCfuOGF2odk+Orflzpk017oBmLy11qiQTXpcc9ZWqhx2SfYDr2izplyxy2bCkWDSXCQpBDhU5u9+mhHlDQ==",
+      "path": "microsoft.web.webview2/1.0.2849.39",
+      "hashPath": "microsoft.web.webview2.1.0.2849.39.nupkg.sha512"
+    },
+    "Microsoft.Web.WebView2.Core/1.0.2849.39": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Web.WebView2.WinForms/1.0.2849.39": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Web.WebView2.Wpf/1.0.2849.39": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -236,7 +236,6 @@ C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\hostfxr.dll
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\hostpolicy.dll
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\mscordaccore.dll
-C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\mscordaccore_amd64_amd64_8.0.2125.47513.dll
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\mscordbi.dll
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\mscorrc.dll
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\msquic.dll
@@ -491,3 +490,4 @@ C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\obj\Release\net8.
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\obj\Release\net8.0-windows10.0.18362.0\win-x64\StealthInterviewAssistant.pdb
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\obj\Release\net8.0-windows10.0.18362.0\win-x64\StealthInterviewAssistant.genruntimeconfig.cache
 C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\obj\Release\net8.0-windows10.0.18362.0\win-x64\ref\StealthInterviewAssistant.dll
+C:\Users\assas_8\Downloads\PowerView\StealthInterviewAssistant\bin\Release\net8.0-windows10.0.18362.0\win-x64\mscordaccore_amd64_amd64_8.0.2225.52707.dll
