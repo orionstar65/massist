@@ -382,11 +382,15 @@
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"/>
             <Grid x:Name="ContentGrid" MouseDown="Grid_MouseDown" Visibility="Hidden" Cursor="Arrow">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="40"/>
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0" Cursor="Arrow">
+            <Grid Grid.Row="0" Grid.Column="0" Cursor="Arrow">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="CaptionColumn" Width="5*"/>
                 <ColumnDefinition Width="4"/>
@@ -401,7 +405,7 @@
                 BorderBrush="#D03F3F46" 
                 BorderThickness="1" 
                 CornerRadius="8"
-                Margin="10"
+                Margin="10, 10, 5, 10"
                 Opacity="0"
                 RenderTransformOrigin="0.5,0.5"
                 Cursor="Arrow">
@@ -612,7 +616,7 @@
                 BorderBrush="#D03F3F46" 
                 BorderThickness="1" 
                 CornerRadius="8"
-                Margin="10"
+                Margin="5, 10, 8, 10"
                 Opacity="0"
                 RenderTransformOrigin="0.5,0.5"
                 Cursor="Arrow">
@@ -709,7 +713,7 @@
             </Grid>
             
             <!-- Button Groups Row -->
-            <Grid Grid.Row="1" 
+            <Grid Grid.Row="1" Grid.Column="0" 
                   Margin="10,0,10,10"
                   x:Name="ButtonGroupsContainer"
                   Opacity="0"
@@ -885,6 +889,44 @@
                     </Grid>
                 </Border>
             </Grid>
+            
+            <!-- Control Panel: Right Side Button Group -->
+            <Border x:Name="ControlPanel"
+                    Grid.Column="1"
+                    Grid.RowSpan="2"
+                    Margin="0,10,10,10"
+                    VerticalAlignment="Stretch"
+                    Cursor="Arrow">
+                    <!--
+                    Background="#D0252526"
+                    BorderBrush="#D03F3F46"
+                    BorderThickness="1"
+                    CornerRadius="8,8,8,8"
+                    Padding="6"
+                    -->
+                <StackPanel Orientation="Vertical"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center">
+                    <Button x:Name="ArrowCursorButton"
+                           Content="A"
+                           Width="28" Height="28"
+                           MinWidth="28" MaxWidth="28"
+                           Margin="0,4,0,4"
+                           ToolTip="Use Arrow cursor system"
+                           Click="ArrowCursorButton_Click"
+                           Style="{StaticResource ActionButtonStyle}"/>
+                    <Button x:Name="CaretCursorButton"
+                           Content="I"
+                           Width="28" Height="28"
+                           MinWidth="28" MaxWidth="28"
+                           Margin="0,4,0,4"
+                           ToolTip="Use Caret cursor system"
+                           Click="CaretCursorButton_Click"
+                           MouseEnter="CaretCursorButton_MouseEnter"
+                           MouseLeave="CaretCursorButton_MouseLeave"
+                           Style="{StaticResource ActionButtonStyle}"/>
+                </StackPanel>
+            </Border>
             </Grid>
             <!-- Startup Animation Label - Centered overlay on top of everything -->
             <Border x:Name="StartupLabelContainer"

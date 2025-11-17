@@ -54,6 +54,10 @@ namespace StealthInterviewAssistant.Views
         // Retry counter for hotkey registration
         private int _hotkeyRegistrationRetryCount = 0;
         private const int MAX_HOTKEY_REGISTRATION_RETRIES = 5;
+        
+        // Cursor system state
+        private enum CursorSystem { Arrow, Caret }
+        private CursorSystem _currentCursorSystem = CursorSystem.Arrow;
 
         public MainWindow()
         {
@@ -391,6 +395,12 @@ namespace StealthInterviewAssistant.Views
             
             // Start the startup label animation (content panels will appear after label hides)
             StartStartupAnimation();
+            
+            // Initialize cursor system (default to Arrow)
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SwitchCursorSystem(CursorSystem.Arrow);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
             
             // Subscribe to property changes
             if (DataContext is MainViewModel viewModel)
@@ -1008,26 +1018,22 @@ namespace StealthInterviewAssistant.Views
                     // Set DefaultBackgroundColor to transparent on the WebView2 control
                     StealthBrowser.DefaultBackgroundColor = System.Drawing.Color.Transparent;
                     
-                    // Also inject CSS to make body background transparent for web pages and force arrow cursor
+                    // Also inject CSS to make body background transparent for web pages and apply cursor system
                     StealthBrowser.CoreWebView2.DOMContentLoaded += async (s, args) =>
                     {
                         string script = @"
                             (function() {
                                 if (document.body) {
                                     document.body.style.backgroundColor = 'transparent';
-                                    document.body.style.cursor = 'default';
                                 }
                                 if (document.documentElement) {
                                     document.documentElement.style.backgroundColor = 'transparent';
-                                    document.documentElement.style.cursor = 'default';
                                 }
-                                // Force arrow cursor on all elements
-                                var style = document.createElement('style');
-                                style.textContent = '* { cursor: default !important; }';
-                                document.head.appendChild(style);
                             })();
                         ";
                         await StealthBrowser.CoreWebView2.ExecuteScriptAsync(script);
+                        // Apply current cursor system
+                        await UpdateWebView2Cursor(_currentCursorSystem);
                     };
                     
                     // Also inject cursor CSS on navigation completed
@@ -1035,20 +1041,8 @@ namespace StealthInterviewAssistant.Views
                     {
                         if (args.IsSuccess)
                         {
-                            string cursorScript = @"
-                                (function() {
-                                    var style = document.createElement('style');
-                                    style.textContent = '* { cursor: default !important; }';
-                                    if (document.head) {
-                                        document.head.appendChild(style);
-                                    } else {
-                                        document.addEventListener('DOMContentLoaded', function() {
-                                            document.head.appendChild(style);
-                                        });
-                                    }
-                                })();
-                            ";
-                            await StealthBrowser.CoreWebView2.ExecuteScriptAsync(cursorScript);
+                            // Update cursor based on current system
+                            await UpdateWebView2Cursor(_currentCursorSystem);
                         }
                     };
                 }
@@ -1899,6 +1893,15 @@ namespace StealthInterviewAssistant.Views
             }
         }
 
+        private void ControlPanelChatGPTButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.BrowserUrl = "https://chatgpt.com";
+                NavigateToUrl();
+            }
+        }
+
         private void CaptionTextSizeSlider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
         {
             if (CaptionTextBlock != null && CaptionTextSizeLabel != null)
@@ -2181,6 +2184,153 @@ namespace StealthInterviewAssistant.Views
                 exStyle |= NativeMethods.WS_EX_TOOLWINDOW;
                 exStyle &= ~NativeMethods.WS_EX_APPWINDOW;
                 NativeMethods.SetWindowLong(_helper.Handle, NativeMethods.GWL_EXSTYLE, exStyle);
+            }
+        }
+
+        private void SwitchCursorSystem(CursorSystem system)
+        {
+            _currentCursorSystem = system;
+            System.Windows.Input.Cursor cursor = system == CursorSystem.Arrow 
+                ? System.Windows.Input.Cursors.Arrow 
+                : System.Windows.Input.Cursors.IBeam;
+
+            // Update window cursor (this will cascade to all child elements unless overridden)
+            this.Cursor = cursor;
+
+            // Recursively update all UI elements to ensure cursor is applied everywhere
+            UpdateCursorRecursive(this, cursor);
+            
+            // Special handling: CaretCursorButton should always show Caret cursor on hover
+            if (CaretCursorButton != null)
+            {
+                // Don't override CaretCursorButton cursor here - it's handled by MouseEnter/MouseLeave
+            }
+
+            // Update button states
+            if (ArrowCursorButton != null)
+            {
+                var arrowStyle = ArrowCursorButton.Style;
+                if (system == CursorSystem.Arrow)
+                {
+                    ArrowCursorButton.Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0));
+                }
+                else
+                {
+                    ArrowCursorButton.Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30));
+                }
+            }
+
+            if (CaretCursorButton != null)
+            {
+                if (system == CursorSystem.Caret)
+                {
+                    CaretCursorButton.Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0));
+                }
+                else
+                {
+                    CaretCursorButton.Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30));
+                }
+            }
+
+            // Update WebView2 cursor via JavaScript
+            UpdateWebView2Cursor(system);
+        }
+
+        private async Task UpdateWebView2Cursor(CursorSystem system)
+        {
+            if (StealthBrowser?.CoreWebView2 == null)
+                return;
+
+            try
+            {
+                string cursorValue = system == CursorSystem.Arrow ? "default" : "text";
+                string script = $@"
+                    (function() {{
+                        var style = document.createElement('style');
+                        style.textContent = '* {{ cursor: {cursorValue} !important; }}';
+                        if (document.head) {{
+                            // Remove existing cursor style if any
+                            var existingStyle = document.getElementById('cursor-system-style');
+                            if (existingStyle) {{
+                                existingStyle.remove();
+                            }}
+                            style.id = 'cursor-system-style';
+                            document.head.appendChild(style);
+                        }} else {{
+                            document.addEventListener('DOMContentLoaded', function() {{
+                                var existingStyle = document.getElementById('cursor-system-style');
+                                if (existingStyle) {{
+                                    existingStyle.remove();
+                                }}
+                                style.id = 'cursor-system-style';
+                                document.head.appendChild(style);
+                            }});
+                        }}
+                    }})();
+                ";
+                await StealthBrowser.CoreWebView2.ExecuteScriptAsync(script);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating WebView2 cursor: {ex.Message}");
+            }
+        }
+
+        private void ArrowCursorButton_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCursorSystem(CursorSystem.Arrow);
+        }
+
+        private void CaretCursorButton_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCursorSystem(CursorSystem.Caret);
+        }
+
+        private void CaretCursorButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            // Always show Caret cursor when hovering over CaretCursorButton
+            if (CaretCursorButton != null)
+            {
+                CaretCursorButton.Cursor = System.Windows.Input.Cursors.IBeam;
+            }
+        }
+
+        private void CaretCursorButton_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            // Restore to current cursor system when mouse leaves
+            if (CaretCursorButton != null)
+            {
+                System.Windows.Input.Cursor cursor = _currentCursorSystem == CursorSystem.Arrow 
+                    ? System.Windows.Input.Cursors.Arrow 
+                    : System.Windows.Input.Cursors.IBeam;
+                CaretCursorButton.Cursor = cursor;
+            }
+        }
+
+        private void UpdateCursorRecursive(System.Windows.DependencyObject element, System.Windows.Input.Cursor cursor)
+        {
+            if (element == null) return;
+
+            // Update cursor for FrameworkElement
+            if (element is System.Windows.FrameworkElement fe)
+            {
+                // Skip CaretCursorButton - it has special handling
+                if (fe.Name != "CaretCursorButton")
+                {
+                    fe.Cursor = cursor;
+                }
+            }
+
+            // Recursively update all children
+            int childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
+                UpdateCursorRecursive(child, cursor);
             }
         }
 
