@@ -12,3 +12,8 @@
 /StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.pdb
 /StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.deps.json
 /StealthInterviewAssistant/bin/Release/net8.0-windows10.0.18362.0/win-x64/publish/StealthInterviewAssistant.runtimeconfig.json
+
+# Configuration files with sensitive data
+appsettings.json
+appsettings.*.json
+!appsettings.example.json

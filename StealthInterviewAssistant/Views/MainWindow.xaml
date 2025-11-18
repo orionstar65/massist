@@ -17,6 +17,7 @@
         SourceInitialized="Window_SourceInitialized"
         Cursor="Arrow">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <!-- Animation for the main border -->
         <Storyboard x:Key="BorderFadeInAnimation">
             <DoubleAnimation Storyboard.TargetName="MainBorder"
@@ -416,6 +417,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 
@@ -544,9 +546,96 @@
                     <!-- Text Size Control removed - moved to button groups area -->
                 </StackPanel>
                 
+                <!-- Calendar Section -->
+                <Border Grid.Row="2"
+                       Background="#D01E1E1E"
+                       BorderBrush="#D03F3F46"
+                       BorderThickness="1"
+                       CornerRadius="4"
+                       Margin="10,0,10,5"
+                       Padding="8"
+                       Visibility="{Binding IsCalendarPanelVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <Button Command="{Binding ConnectCalendarCommand}"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Padding="6,3"
+                                    Height="24"
+                                    FontSize="10"
+                                    Margin="0,0,5,0">
+                                <TextBlock Text="📅 Connect Calendar"/>
+                            </Button>
+                            <Button Command="{Binding RefreshCalendarCommand}"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Padding="6,3"
+                                    Height="24"
+                                    FontSize="10"
+                                    IsEnabled="{Binding IsCalendarConnected}">
+                                <TextBlock Text="🔄"/>
+                            </Button>
+                            <Button Command="{Binding ToggleCalendarPanelCommand}"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Padding="6,3"
+                                    Height="24"
+                                    FontSize="10"
+                                    Margin="5,0,0,0"
+                                    ToolTip="Hide Calendar Panel">
+                                <TextBlock Text="✖"/>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="{Binding CalendarStatusMessage}"
+                                  Foreground="#B0B0B0"
+                                  FontSize="10"
+                                  Margin="0,0,0,5"
+                                  TextWrapping="Wrap"/>
+                        <ScrollViewer MaxHeight="100"
+                                     VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding UpcomingEvents}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#D02D2D30"
+                                               BorderBrush="#D03F3F46"
+                                               BorderThickness="1"
+                                               CornerRadius="3"
+                                               Padding="6"
+                                               Margin="0,0,0,4">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Summary}"
+                                                          Foreground="#FFFFFF"
+                                                          FontSize="11"
+                                                          FontWeight="SemiBold"
+                                                          TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding TimeRange}"
+                                                          Foreground="#4EC9B0"
+                                                          FontSize="9"
+                                                          Margin="0,2,0,0"/>
+                                                <TextBlock Text="{Binding CalendarName, StringFormat='📅 {0}'}"
+                                                          Foreground="#808080"
+                                                          FontSize="8"
+                                                          Margin="0,2,0,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CalendarName}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+                
                 <!-- Caption Box -->
-                <Border Grid.Row="2" 
-                       Background="#D01E1E1E" 
+                <Border Grid.Row="3" 
+                       Background="#301E1E1E" 
                        BorderBrush="#D03F3F46" 
                        BorderThickness="1" 
                        CornerRadius="4"
@@ -743,6 +832,7 @@
                             <ToggleButton x:Name="ToggleProfessional"
                                          Content="Professional"
                                          Style="{StaticResource ToggleButtonStyle}"
+                                         IsChecked = "True"
                                          Checked="ToggleButton_Checked"
                                          Unchecked="ToggleButton_Unchecked"/>
                             <ToggleButton x:Name="ToggleInteresting"
@@ -778,6 +868,7 @@
                             <ToggleButton x:Name="ToggleImpactful"
                                          Content="Impactful"
                                          Style="{StaticResource ToggleButtonStyle}"
+                                         IsChecked = "True"
                                          Checked="ToggleButton_Checked"
                                          Unchecked="ToggleButton_Unchecked"/>
                             <ToggleButton x:Name="ToggleTechStack"

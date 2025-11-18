@@ -1143,7 +1143,11 @@ namespace StealthInterviewAssistant.Views
                 {
                     case HOTKEY_ID_SEND_TO_WEBVIEW:
                         // Use Dispatcher to handle on UI thread and prevent blocking
-                        Dispatcher.BeginInvoke(new Action(() => SendLastCaptionToWebView()));
+                        // Call the same action as Answer button
+                        Dispatcher.BeginInvoke(new Action(() => 
+                        {
+                            _ = SendTextWithPrompt("answer this", includeToggleModifiers: true);
+                        }));
                         handled = true;
                         break;
                     case HOTKEY_ID_MOVE_LEFT:
@@ -2212,13 +2216,16 @@ namespace StealthInterviewAssistant.Views
                 var arrowStyle = ArrowCursorButton.Style;
                 if (system == CursorSystem.Arrow)
                 {
-                    ArrowCursorButton.Background = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0));
+                    var activeColor = System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0);
+                    ArrowCursorButton.Background = new System.Windows.Media.SolidColorBrush(activeColor);
+                    ArrowCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(activeColor);
                 }
                 else
                 {
-                    ArrowCursorButton.Background = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30));
+                    var inactiveColor = System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30);
+                    var defaultBorderColor = System.Windows.Media.Color.FromRgb(0x3F, 0x3F, 0x46);
+                    ArrowCursorButton.Background = new System.Windows.Media.SolidColorBrush(inactiveColor);
+                    ArrowCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(defaultBorderColor);
                 }
             }
 
@@ -2226,13 +2233,16 @@ namespace StealthInterviewAssistant.Views
             {
                 if (system == CursorSystem.Caret)
                 {
-                    CaretCursorButton.Background = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0));
+                    var activeColor = System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0);
+                    CaretCursorButton.Background = new System.Windows.Media.SolidColorBrush(activeColor);
+                    CaretCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(activeColor);
                 }
                 else
                 {
-                    CaretCursorButton.Background = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30));
+                    var inactiveColor = System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30);
+                    var defaultBorderColor = System.Windows.Media.Color.FromRgb(0x3F, 0x3F, 0x46);
+                    CaretCursorButton.Background = new System.Windows.Media.SolidColorBrush(inactiveColor);
+                    CaretCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(defaultBorderColor);
                 }
             }
 

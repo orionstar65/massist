@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Extensions.Configuration;
 using StealthInterviewAssistant.Services;
 
 namespace StealthInterviewAssistant.ViewModels
@@ -9,6 +14,7 @@ namespace StealthInterviewAssistant.ViewModels
     public class MainViewModel : ViewModelBase
     {
         private readonly LiveCaptionsService _liveCaptionsService;
+        private GoogleCalendarService? _calendarService;
         
         private string _transcript = string.Empty;
         private bool _excludedFromCapture = true; // Default to excluded (matches Window_Loaded behavior)
@@ -19,6 +25,11 @@ namespace StealthInterviewAssistant.ViewModels
         private string _startStopButtonIcon = "▶";
         private string _startStopButtonTooltip = "Start Live Captions";
         private Color _statusLightColor = Colors.Gray;
+        private bool _isCalendarConnected = false;
+        private string _calendarStatusMessage = "Not connected to Google Calendar";
+        private ObservableCollection<CalendarEvent> _upcomingEvents = new ObservableCollection<CalendarEvent>();
+        private CalendarEvent? _nextInterview;
+        private bool _isCalendarPanelVisible = false;
 
         public MainViewModel()
         {
@@ -29,9 +40,15 @@ namespace StealthInterviewAssistant.ViewModels
             CopyDeltaCommand = new RelayCommand(CopyDelta);
             ClearBufferCommand = new RelayCommand(ClearBuffer);
             ToggleExcludeCaptureCommand = new RelayCommand(ToggleExcludeCapture);
+            ConnectCalendarCommand = new RelayCommand(ConnectCalendar);
+            RefreshCalendarCommand = new RelayCommand(() => _ = RefreshCalendar());
+            ToggleCalendarPanelCommand = new RelayCommand(ToggleCalendarPanel);
             
             // Initialize button content based on initial state
             UpdateToggleButtonContent();
+            
+            // Initialize calendar service if credentials are available
+            InitializeCalendarService();
         }
 
         public string Transcript
@@ -129,6 +146,59 @@ namespace StealthInterviewAssistant.ViewModels
         public ICommand CopyDeltaCommand { get; }
         public ICommand ClearBufferCommand { get; }
         public ICommand ToggleExcludeCaptureCommand { get; }
+        public ICommand ConnectCalendarCommand { get; }
+        public ICommand RefreshCalendarCommand { get; }
+        public ICommand ToggleCalendarPanelCommand { get; }
+
+        public bool IsCalendarConnected
+        {
+            get => _isCalendarConnected;
+            set
+            {
+                _isCalendarConnected = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string CalendarStatusMessage
+        {
+            get => _calendarStatusMessage;
+            set
+            {
+                _calendarStatusMessage = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ObservableCollection<CalendarEvent> UpcomingEvents
+        {
+            get => _upcomingEvents;
+            set
+            {
+                _upcomingEvents = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public CalendarEvent? NextInterview
+        {
+            get => _nextInterview;
+            set
+            {
+                _nextInterview = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsCalendarPanelVisible
+        {
+            get => _isCalendarPanelVisible;
+            set
+            {
+                _isCalendarPanelVisible = value;
+                OnPropertyChanged();
+            }
+        }
 
         private async void StartCaptions()
         {
@@ -235,6 +305,113 @@ namespace StealthInterviewAssistant.ViewModels
             {
                 Transcript = newText;
             });
+        }
+
+        private void InitializeCalendarService()
+        {
+            try
+            {
+                var config = App.Configuration;
+                if (config != null)
+                {
+                    var clientId = config["GoogleCalendar:ClientId"];
+                    var clientSecret = config["GoogleCalendar:ClientSecret"];
+                    
+                    if (!string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(clientSecret))
+                    {
+                        _calendarService = new GoogleCalendarService(clientId, clientSecret);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error initializing calendar service: {ex.Message}");
+            }
+        }
+
+        private async void ConnectCalendar()
+        {
+            if (_calendarService == null)
+            {
+                CalendarStatusMessage = "Calendar service not initialized. Check appsettings.json";
+                return;
+            }
+
+            try
+            {
+                CalendarStatusMessage = "Connecting to Google Calendar...";
+                bool success = await _calendarService.AuthenticateAsync();
+                
+                if (success)
+                {
+                    IsCalendarConnected = true;
+                    CalendarStatusMessage = "✓ Connected to Google Calendar";
+                    await RefreshCalendar();
+                }
+                else
+                {
+                    IsCalendarConnected = false;
+                    string errorMsg = _calendarService.LastError ?? "Failed to connect. Please try again.";
+                    CalendarStatusMessage = $"✗ {errorMsg}";
+                    
+                    // Show detailed error in a message box for debugging
+                    if (!string.IsNullOrEmpty(_calendarService.LastError))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Calendar connection failed: {_calendarService.LastError}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                IsCalendarConnected = false;
+                CalendarStatusMessage = $"✗ Error: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"Calendar connection error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        private async Task RefreshCalendar()
+        {
+            if (_calendarService == null || !IsCalendarConnected)
+            {
+                return;
+            }
+
+            try
+            {
+                CalendarStatusMessage = "Refreshing calendar...";
+                var interviews = await _calendarService.GetUpcomingInterviewsAsync(5);
+                
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    UpcomingEvents.Clear();
+                    foreach (var interview in interviews)
+                    {
+                        UpcomingEvents.Add(interview);
+                    }
+                    
+                    NextInterview = interviews.FirstOrDefault();
+                    
+                    if (interviews.Count > 0)
+                    {
+                        CalendarStatusMessage = $"✓ Found {interviews.Count} upcoming interview(s)";
+                    }
+                    else
+                    {
+                        CalendarStatusMessage = "✓ No upcoming interviews found";
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                CalendarStatusMessage = $"✗ Error refreshing: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"Calendar refresh error: {ex.Message}");
+            }
+        }
+
+        private void ToggleCalendarPanel()
+        {
+            IsCalendarPanelVisible = !IsCalendarPanelVisible;
         }
     }
 }
