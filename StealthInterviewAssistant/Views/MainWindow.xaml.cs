@@ -56,7 +56,7 @@ namespace StealthInterviewAssistant.Views
         private const int MAX_HOTKEY_REGISTRATION_RETRIES = 5;
         
         // Cursor system state
-        private enum CursorSystem { Arrow, Caret }
+        private enum CursorSystem { Arrow, Caret, Normal }
         private CursorSystem _currentCursorSystem = CursorSystem.Arrow;
 
         public MainWindow()
@@ -2194,14 +2194,23 @@ namespace StealthInterviewAssistant.Views
         private void SwitchCursorSystem(CursorSystem system)
         {
             _currentCursorSystem = system;
-            System.Windows.Input.Cursor cursor = system == CursorSystem.Arrow 
-                ? System.Windows.Input.Cursors.Arrow 
-                : System.Windows.Input.Cursors.IBeam;
+            System.Windows.Input.Cursor cursor = null;
+            
+            if (system == CursorSystem.Arrow)
+            {
+                cursor = System.Windows.Input.Cursors.Arrow;
+            }
+            else if (system == CursorSystem.Caret)
+            {
+                cursor = System.Windows.Input.Cursors.IBeam;
+            }
+            // Normal system: cursor is null, which restores original cursors
 
             // Update window cursor (this will cascade to all child elements unless overridden)
             this.Cursor = cursor;
 
             // Recursively update all UI elements to ensure cursor is applied everywhere
+            // For Normal system, pass null to restore original cursors
             UpdateCursorRecursive(this, cursor);
             
             // Special handling: CaretCursorButton should always show Caret cursor on hover
@@ -2246,6 +2255,23 @@ namespace StealthInterviewAssistant.Views
                 }
             }
 
+            if (NormalCursorButton != null)
+            {
+                if (system == CursorSystem.Normal)
+                {
+                    var activeColor = System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0);
+                    NormalCursorButton.Background = new System.Windows.Media.SolidColorBrush(activeColor);
+                    NormalCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(activeColor);
+                }
+                else
+                {
+                    var inactiveColor = System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30);
+                    var defaultBorderColor = System.Windows.Media.Color.FromRgb(0x3F, 0x3F, 0x46);
+                    NormalCursorButton.Background = new System.Windows.Media.SolidColorBrush(inactiveColor);
+                    NormalCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(defaultBorderColor);
+                }
+            }
+
             // Update WebView2 cursor via JavaScript
             UpdateWebView2Cursor(system);
         }
@@ -2257,6 +2283,21 @@ namespace StealthInterviewAssistant.Views
 
             try
             {
+                // For Normal system, remove the cursor override style
+                if (system == CursorSystem.Normal)
+                {
+                    string removeScript = @"
+                        (function() {
+                            var existingStyle = document.getElementById('cursor-system-style');
+                            if (existingStyle) {
+                                existingStyle.remove();
+                            }
+                        })();
+                    ";
+                    await StealthBrowser.CoreWebView2.ExecuteScriptAsync(removeScript);
+                    return;
+                }
+
                 string cursorValue = system == CursorSystem.Arrow ? "default" : "text";
                 string script = $@"
                     (function() {{
@@ -2298,6 +2339,11 @@ namespace StealthInterviewAssistant.Views
         private void CaretCursorButton_Click(object sender, RoutedEventArgs e)
         {
             SwitchCursorSystem(CursorSystem.Caret);
+        }
+
+        private void NormalCursorButton_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchCursorSystem(CursorSystem.Normal);
         }
 
         private void CaretCursorButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)

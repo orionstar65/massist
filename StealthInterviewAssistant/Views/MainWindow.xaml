@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Stealth Interview Assistant" Height="650" Width="700"
+        Title="Stealth Interview Assistant" Height="650" Width="680"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -345,8 +345,16 @@
         </Style>
     </Window.Resources>
     
+    <!-- Main Container Grid: MainBorder + Control Panel -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="55"/>
+        </Grid.ColumnDefinitions>
+    
     <!-- Resize Border -->
     <Border x:Name="MainBorder"
+            Grid.Column="0"
             BorderThickness="0" 
             CornerRadius="8"
             Background="Transparent"
@@ -385,7 +393,6 @@
             <Grid x:Name="ContentGrid" MouseDown="Grid_MouseDown" Visibility="Hidden" Cursor="Arrow">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="40"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -393,9 +400,9 @@
             </Grid.RowDefinitions>
             <Grid Grid.Row="0" Grid.Column="0" Cursor="Arrow">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="CaptionColumn" Width="5*"/>
-                <ColumnDefinition Width="4"/>
-                <ColumnDefinition Width="5*"/>
+                <ColumnDefinition x:Name="CaptionColumn" Width="5*" MinWidth="100"/>
+                <ColumnDefinition Width="5" MinWidth="5"/>
+                <ColumnDefinition Width="5*" MinWidth="100"/>
             </Grid.ColumnDefinitions>
         
         <!-- Left Column: Caption Panel -->
@@ -674,7 +681,8 @@
                 HorizontalAlignment="Center"
                 Width="5"
                 Background="Transparent"
-                x:Name="SplitterBorder">
+                x:Name="SplitterBorder"
+                IsHitTestVisible="False">
             <Rectangle x:Name="SplitterRectangle"
                       Stroke="#803F3F46" 
                       StrokeThickness="2.5"
@@ -695,7 +703,8 @@
                      HorizontalAlignment="Stretch" 
                      Background="Transparent"
                      Width="5"
-                     ResizeBehavior="PreviousAndNext"/>
+                     ResizeBehavior="PreviousAndNext"
+                     ShowsPreview="False"/>
         
         <!-- Right Column: Stealth Browser -->
         <Border x:Name="RightPanel"
@@ -980,45 +989,6 @@
                     </Grid>
                 </Border>
             </Grid>
-            
-            <!-- Control Panel: Right Side Button Group -->
-            <Border x:Name="ControlPanel"
-                    Grid.Column="1"
-                    Grid.RowSpan="2"
-                    Margin="0,10,10,10"
-                    VerticalAlignment="Stretch"
-                    Cursor="Arrow">
-                    <!--
-                    Background="#D0252526"
-                    BorderBrush="#D03F3F46"
-                    BorderThickness="1"
-                    CornerRadius="8,8,8,8"
-                    Padding="6"
-                    -->
-                <StackPanel Orientation="Vertical"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Center">
-                    <Button x:Name="ArrowCursorButton"
-                           Content="A"
-                           Width="28" Height="28"
-                           MinWidth="28" MaxWidth="28"
-                           Margin="0,4,0,4"
-                           ToolTip="Use Arrow cursor system"
-                           Click="ArrowCursorButton_Click"
-                           Style="{StaticResource ActionButtonStyle}"/>
-                    <Button x:Name="CaretCursorButton"
-                           Content="I"
-                           Width="28" Height="28"
-                           MinWidth="28" MaxWidth="28"
-                           Margin="0,4,0,4"
-                           ToolTip="Use Caret cursor system"
-                           Click="CaretCursorButton_Click"
-                           MouseEnter="CaretCursorButton_MouseEnter"
-                           MouseLeave="CaretCursorButton_MouseLeave"
-                           Style="{StaticResource ActionButtonStyle}"/>
-                </StackPanel>
-            </Border>
-            </Grid>
             <!-- Startup Animation Label - Centered overlay on top of everything -->
             <Border x:Name="StartupLabelContainer"
                     HorizontalAlignment="Center"
@@ -1041,5 +1011,52 @@
                           VerticalAlignment="Center"/>
             </Border>
         </Grid>
+            </Grid>
     </Border>
+    
+    <!-- Control Panel: Right Side Button Group (Outside MainBorder) -->
+    <Border x:Name="ControlPanel"
+            Grid.Column="1"
+            Margin="5,10,10,10"
+            VerticalAlignment="Stretch"
+            Cursor="Arrow">
+        <!--
+        Background="#D0252526"
+        BorderBrush="#D03F3F46"
+        BorderThickness="1"
+        CornerRadius="8,8,8,8"
+        Padding="6"
+        -->
+        <StackPanel Orientation="Vertical"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center">
+            <Button x:Name="ArrowCursorButton"
+                   Content="A"
+                   Width="28" Height="28"
+                   MinWidth="28" MaxWidth="28"
+                   Margin="0,4,0,4"
+                   ToolTip="Use Arrow cursor system"
+                   Click="ArrowCursorButton_Click"
+                   Style="{StaticResource ActionButtonStyle}"/>
+            <Button x:Name="CaretCursorButton"
+                   Content="I"
+                   Width="28" Height="28"
+                   MinWidth="28" MaxWidth="28"
+                   Margin="0,4,0,4"
+                   ToolTip="Use Caret cursor system"
+                   Click="CaretCursorButton_Click"
+                   MouseEnter="CaretCursorButton_MouseEnter"
+                   MouseLeave="CaretCursorButton_MouseLeave"
+                   Style="{StaticResource ActionButtonStyle}"/>
+            <Button x:Name="NormalCursorButton"
+                   Content="N"
+                   Width="28" Height="28"
+                   MinWidth="28" MaxWidth="28"
+                   Margin="0,4,0,4"
+                   ToolTip="Use Normal cursor system (original cursors)"
+                   Click="NormalCursorButton_Click"
+                   Style="{StaticResource ActionButtonStyle}"/>
+        </StackPanel>
+    </Border>
+    </Grid>
 </Window>
