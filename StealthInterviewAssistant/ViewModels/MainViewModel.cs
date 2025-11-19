@@ -2,16 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Extensions.Configuration;
 using StealthInterviewAssistant.Services;
 
 namespace StealthInterviewAssistant.ViewModels
 {
-    public class MainViewModel : ViewModelBase
+    public class MainViewModel : ViewModelBase, IDisposable
     {
         private readonly LiveCaptionsService _liveCaptionsService;
         private GoogleCalendarService? _calendarService;
@@ -30,6 +32,15 @@ namespace StealthInterviewAssistant.ViewModels
         private ObservableCollection<CalendarEvent> _upcomingEvents = new ObservableCollection<CalendarEvent>();
         private CalendarEvent? _nextInterview;
         private bool _isCalendarPanelVisible = false;
+        private bool _isLoggingEnabled = false;
+        private bool _isHelpWindowVisible = false;
+        private bool _isInterviewMode = true; // Default to Interview Mode
+        
+        // Throttling for UI updates
+        private DispatcherTimer? _updateThrottleTimer;
+        private string _pendingTranscript = string.Empty;
+        private readonly object _updateLock = new object();
+        private const int UPDATE_THROTTLE_MS = 100; // Max 10 updates per second
 
         public MainViewModel()
         {
@@ -43,12 +54,21 @@ namespace StealthInterviewAssistant.ViewModels
             ConnectCalendarCommand = new RelayCommand(ConnectCalendar);
             RefreshCalendarCommand = new RelayCommand(() => _ = RefreshCalendar());
             ToggleCalendarPanelCommand = new RelayCommand(ToggleCalendarPanel);
+            ToggleLoggingCommand = new RelayCommand(ToggleLogging);
             
             // Initialize button content based on initial state
             UpdateToggleButtonContent();
             
             // Initialize calendar service if credentials are available
             InitializeCalendarService();
+            
+            // Initialize throttling timer for UI updates
+            _updateThrottleTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(UPDATE_THROTTLE_MS),
+                IsEnabled = false
+            };
+            _updateThrottleTimer.Tick += UpdateThrottleTimer_Tick;
         }
 
         public string Transcript
@@ -149,6 +169,7 @@ namespace StealthInterviewAssistant.ViewModels
         public ICommand ConnectCalendarCommand { get; }
         public ICommand RefreshCalendarCommand { get; }
         public ICommand ToggleCalendarPanelCommand { get; }
+        public ICommand ToggleLoggingCommand { get; }
 
         public bool IsCalendarConnected
         {
@@ -197,6 +218,46 @@ namespace StealthInterviewAssistant.ViewModels
             {
                 _isCalendarPanelVisible = value;
                 OnPropertyChanged();
+            }
+        }
+
+        public bool IsLoggingEnabled
+        {
+            get => _isLoggingEnabled;
+            set
+            {
+                if (_isLoggingEnabled != value)
+                {
+                    _isLoggingEnabled = value;
+                    _liveCaptionsService.SetLoggingEnabled(value);
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool IsHelpWindowVisible
+        {
+            get => _isHelpWindowVisible;
+            set
+            {
+                if (_isHelpWindowVisible != value)
+                {
+                    _isHelpWindowVisible = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool IsInterviewMode
+        {
+            get => _isInterviewMode;
+            set
+            {
+                if (_isInterviewMode != value)
+                {
+                    _isInterviewMode = value;
+                    OnPropertyChanged();
+                }
             }
         }
 
@@ -300,11 +361,36 @@ namespace StealthInterviewAssistant.ViewModels
 
         private void OnNewTextReceived(string newText)
         {
-            // Replace transcript with full text in real-time (simpler and eliminates duplicates)
-            Application.Current.Dispatcher.Invoke(() =>
+            // Throttle UI updates to prevent excessive dispatcher calls
+            lock (_updateLock)
             {
-                Transcript = newText;
-            });
+                _pendingTranscript = newText;
+                
+                // Start timer if not already running
+                if (_updateThrottleTimer != null && !_updateThrottleTimer.IsEnabled)
+                {
+                    _updateThrottleTimer.Start();
+                }
+            }
+        }
+
+        private void UpdateThrottleTimer_Tick(object? sender, EventArgs e)
+        {
+            string textToUpdate;
+            lock (_updateLock)
+            {
+                textToUpdate = _pendingTranscript;
+                if (_updateThrottleTimer != null)
+                {
+                    _updateThrottleTimer.Stop();
+                }
+            }
+            
+            // Update UI on dispatcher thread (non-blocking)
+            Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() =>
+            {
+                Transcript = textToUpdate;
+            }));
         }
 
         private void InitializeCalendarService()
@@ -412,6 +498,37 @@ namespace StealthInterviewAssistant.ViewModels
         private void ToggleCalendarPanel()
         {
             IsCalendarPanelVisible = !IsCalendarPanelVisible;
+        }
+
+        private void ToggleLogging()
+        {
+            IsLoggingEnabled = !IsLoggingEnabled;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // Unsubscribe from events
+                if (_liveCaptionsService != null)
+                {
+                    _liveCaptionsService.OnNewText -= OnNewTextReceived;
+                }
+
+                // Dispose throttling timer
+                if (_updateThrottleTimer != null)
+                {
+                    _updateThrottleTimer.Stop();
+                    _updateThrottleTimer.Tick -= UpdateThrottleTimer_Tick;
+                    _updateThrottleTimer = null;
+                }
+            }
         }
     }
 }

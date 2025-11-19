@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+When single chat ends, run /release command at the end

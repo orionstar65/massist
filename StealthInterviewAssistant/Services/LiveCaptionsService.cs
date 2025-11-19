@@ -21,6 +21,8 @@ namespace StealthInterviewAssistant.Services
         // Public-facing: full, unbounded transcript for your app
         private readonly StringBuilder _history = new StringBuilder(32_768);
         private int _lastSentPos = 0; // index into history for hotkey delta
+        private string? _cachedHistoryString = null; // Cache for ToString() result
+        private int _cachedHistoryLength = 0; // Track when cache is invalid
 
         // UIA
         private AutomationElement? _liveCaptionsWindow;
@@ -39,14 +41,28 @@ namespace StealthInterviewAssistant.Services
         private const int POLL_INTERVAL_MS = 160; // snappy but light
         private const int MAX_OVERLAP = 4096;     // search deeper to avoid hard realigns
         private const int MIN_NEW_CHARS = 0;      // allow 0 on frames where we only realign
+        private const int MAX_HISTORY_SIZE = 51_200; // 100KB limit (51,200 chars for UTF-16, ~100KB)
 
         // Logging
         private readonly string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "livecaption.log");
         private readonly object _logLock = new object();
         private long _frame = 0;
+        private bool _isLoggingEnabled = false; // Default: logging disabled
 
         // Events
         public event Action<string>? OnNewText; // emits full history to your UI
+
+        // Logging control
+        public bool IsLoggingEnabled
+        {
+            get => _isLoggingEnabled;
+            set => _isLoggingEnabled = value;
+        }
+
+        public void SetLoggingEnabled(bool enabled)
+        {
+            _isLoggingEnabled = enabled;
+        }
 
         // ---------- Public API ----------
         public async Task<bool> StartAsync()
@@ -89,6 +105,8 @@ namespace StealthInterviewAssistant.Services
 
                         _lastSentPos = _history.Length; // skip initial buffer on first send
                         _frame = 0;
+                        _cachedHistoryString = null; // Clear cache on start
+                        _cachedHistoryLength = 0;
                     }
 
                     NotifyFullHistoryToUI();
@@ -131,7 +149,17 @@ namespace StealthInterviewAssistant.Services
         /// <summary>Full, unbounded transcript text.</summary>
         public string GetAll()
         {
-            lock (_stateLock) return _history.ToString();
+            lock (_stateLock)
+            {
+                // Use cache if history hasn't changed
+                if (_cachedHistoryString != null && _cachedHistoryLength == _history.Length)
+                {
+                    return _cachedHistoryString;
+                }
+                _cachedHistoryString = _history.ToString();
+                _cachedHistoryLength = _history.Length;
+                return _cachedHistoryString;
+            }
         }
 
         /// <summary>Returns only the new text since last hotkey send.</summary>
@@ -140,7 +168,15 @@ namespace StealthInterviewAssistant.Services
             lock (_stateLock)
             {
                 if (_lastSentPos >= _history.Length) return string.Empty;
-                return _history.ToString(_lastSentPos, _history.Length - _lastSentPos);
+                // Use cached string if available and valid
+                if (_cachedHistoryString != null && _cachedHistoryLength == _history.Length && _lastSentPos == 0)
+                {
+                    return _cachedHistoryString;
+                }
+                // Only create substring if needed
+                int length = _history.Length - _lastSentPos;
+                if (length <= 0) return string.Empty;
+                return _history.ToString(_lastSentPos, length);
             }
         }
 
@@ -163,6 +199,8 @@ namespace StealthInterviewAssistant.Services
                 _lastSnapshot = string.Empty;
                 _lastSentPos = 0;
                 _frame = 0;
+                _cachedHistoryString = null; // Clear cache
+                _cachedHistoryLength = 0;
             }
             NotifyFullHistoryToUI();
             LogFrame("CLEAR", "", "clear", "", "Buffers cleared");
@@ -226,6 +264,7 @@ namespace StealthInterviewAssistant.Services
                                 if (_history.Length > 0 && _history[_history.Length - 1] != '\n')
                                     _history.Append('\n');
                                 _history.Append(snap);
+                                TrimHistoryIfNeeded(_history);
                                 changed = true;
                                 usedCase = "hard-realign";
                                 appendedPreview = Preview(snap);
@@ -246,10 +285,20 @@ namespace StealthInterviewAssistant.Services
                             ApplySplice(_history, startFix, snap);
                             usedCase += "+fix";
                         }
+                        
+                        // 4) Ensure history doesn't exceed size limit
+                        TrimHistoryIfNeeded(_history);
                     }
 
                     _lastSnapshot = snap;
                     _frame++;
+                    
+                    // Invalidate cache when history changes
+                    if (changed)
+                    {
+                        _cachedHistoryString = null;
+                        _cachedHistoryLength = 0;
+                    }
 
                     LogFrame("UPDATE", snap, usedCase, appendedPreview, details);
                 }
@@ -300,12 +349,44 @@ namespace StealthInterviewAssistant.Services
         /// Replace history from 'start' to end with 'replacement'.
         /// Equivalent to: history = history[..start] + replacement
         /// </summary>
-        private static void ApplySplice(StringBuilder history, int start, string replacement)
+        private void ApplySplice(StringBuilder history, int start, string replacement)
         {
             if (start < 0) start = 0;
             if (start > history.Length) start = history.Length;
             history.Remove(start, history.Length - start);
             history.Append(replacement);
+            TrimHistoryIfNeeded(history);
+        }
+
+        /// <summary>
+        /// Trim history to MAX_HISTORY_SIZE by removing oldest content.
+        /// Updates _lastSentPos to maintain correct delta tracking.
+        /// </summary>
+        private void TrimHistoryIfNeeded(StringBuilder history)
+        {
+            if (history.Length <= MAX_HISTORY_SIZE) return;
+
+            int excess = history.Length - MAX_HISTORY_SIZE;
+            // Keep at least 80% of max size to avoid frequent trims
+            int trimAmount = Math.Max(excess, MAX_HISTORY_SIZE / 5);
+            
+            // Remove oldest content
+            history.Remove(0, trimAmount);
+            
+            // Invalidate cache since history changed
+            _cachedHistoryString = null;
+            _cachedHistoryLength = 0;
+            
+            // Adjust _lastSentPos to account for trimmed content
+            if (_lastSentPos > trimAmount)
+            {
+                _lastSentPos -= trimAmount;
+            }
+            else
+            {
+                // If _lastSentPos was in the trimmed region, reset to start
+                _lastSentPos = 0;
+            }
         }
 
         /// <summary>Check if StringBuilder ends with string (ordinal).</summary>
@@ -420,7 +501,20 @@ namespace StealthInterviewAssistant.Services
             try
             {
                 string payload;
-                lock (_stateLock) { payload = _history.ToString(); }
+                lock (_stateLock)
+                {
+                    // Use cache if available
+                    if (_cachedHistoryString != null && _cachedHistoryLength == _history.Length)
+                    {
+                        payload = _cachedHistoryString;
+                    }
+                    else
+                    {
+                        payload = _history.ToString();
+                        _cachedHistoryString = payload;
+                        _cachedHistoryLength = _history.Length;
+                    }
+                }
                 Application.Current?.Dispatcher.BeginInvoke(new Action(() => OnNewText?.Invoke(payload)));
             }
             catch { }
@@ -436,6 +530,8 @@ namespace StealthInterviewAssistant.Services
 
         private void LogFrame(string evt, string system, string used, string appended, string details)
         {
+            if (!_isLoggingEnabled) return; // Skip logging if disabled
+
             try
             {
                 lock (_logLock)

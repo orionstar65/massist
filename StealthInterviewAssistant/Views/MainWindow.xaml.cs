@@ -43,6 +43,7 @@ namespace StealthInterviewAssistant.Views
         private int _currentMoveY = 0;
         private int _currentResizeWidth = 0;
         private int _currentResizeHeight = 0;
+        private HelpWindow? _helpWindow;
         private const int MOVE_STEP = 8; // pixels to move per tick (increased for faster movement)
         private const int RESIZE_STEP = 10; // pixels to resize per tick (increased for faster resizing)
         private const int TIMER_INTERVAL_MS = 10; // ~100fps for faster, smoother movement
@@ -58,6 +59,11 @@ namespace StealthInterviewAssistant.Views
         // Cursor system state
         private enum CursorSystem { Arrow, Caret, Normal }
         private CursorSystem _currentCursorSystem = CursorSystem.Normal;
+        private CursorSystem _previousCursorSystem = CursorSystem.Normal; // Track previous system to detect changes
+        
+        // Cursor update caching
+        private readonly Dictionary<System.Windows.DependencyObject, System.Windows.Input.Cursor?> _cursorCache = new Dictionary<System.Windows.DependencyObject, System.Windows.Input.Cursor?>();
+        private System.Windows.Input.Cursor? _lastAppliedCursor = null;
 
         public MainWindow()
         {
@@ -341,6 +347,7 @@ namespace StealthInterviewAssistant.Views
 
         private void MoveTimer_Tick(object? sender, EventArgs e)
         {
+            if (_moveTimer == null) return;
             if (_currentMoveX != 0 || _currentMoveY != 0)
             {
                 MoveWindow(_currentMoveX, _currentMoveY);
@@ -349,6 +356,7 @@ namespace StealthInterviewAssistant.Views
 
         private void ResizeTimer_Tick(object? sender, EventArgs e)
         {
+            if (_resizeTimer == null) return;
             if (_currentResizeWidth != 0 || _currentResizeHeight != 0)
             {
                 ResizeWindow(_currentResizeWidth, _currentResizeHeight);
@@ -363,6 +371,30 @@ namespace StealthInterviewAssistant.Views
             // Hide content panels initially, but keep MainBorder visible so label can show
             // Set MainBorder opacity to 1.0 so the label inside it is visible
             // Start with MainBorder at small scale (0.7) - it will zoom in during label animation
+            
+            // Ensure StartupLabelContainer is visible and ready - do this immediately
+            if (StartupLabelContainer != null)
+            {
+                // Force visibility immediately
+                StartupLabelContainer.Visibility = Visibility.Visible;
+                StartupLabelContainer.Opacity = 0; // Will be animated to visible
+                System.Windows.Controls.Panel.SetZIndex(StartupLabelContainer, 1000);
+                
+                // Force layout update
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    StartupLabelContainer.UpdateLayout();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+                
+                // Ensure StartupLabel is also visible
+                var startupLabel = this.FindName("StartupLabel") as System.Windows.Controls.TextBlock;
+                if (startupLabel != null)
+                {
+                    startupLabel.Visibility = Visibility.Visible;
+                    startupLabel.Opacity = 1.0; // Label should be fully visible (container opacity controls visibility)
+                }
+            }
+            
             // Initialize BorderPath at small scale for animation
             var borderPath = this.FindName("BorderPath") as System.Windows.Shapes.Rectangle;
             if (borderPath != null)
@@ -393,13 +425,31 @@ namespace StealthInterviewAssistant.Views
                 }
             }
             
-            // Start the startup label animation (content panels will appear after label hides)
-            StartStartupAnimation();
-            
-            // Initialize cursor system (default to Normal)
+            // Start the startup label animation immediately
+            // Use a small delay to ensure window is fully rendered
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                StartStartupAnimation();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            
+            // Initialize cursor system to Normal (default) after UI is fully loaded
+            // This ensures all cursors are correct on startup and NormalCursorButton is active
+            // We do this after UI is loaded so all elements are available for cursor updates
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                // Force a full cursor system update to ensure all XAML-set cursors are overridden
+                // Clear cache first to ensure we check all elements
+                _cursorCache.Clear();
                 SwitchCursorSystem(CursorSystem.Normal);
+                
+                // Initialize mode toggle button text (default is Interview Mode)
+                if (ModeToggleButtonText != null)
+                {
+                    if (DataContext is MainViewModel viewModel)
+                    {
+                        ModeToggleButtonText.Text = viewModel.IsInterviewMode ? "I" : "N";
+                    }
+                }
             }), System.Windows.Threading.DispatcherPriority.Loaded);
             
             // Subscribe to property changes
@@ -416,7 +466,27 @@ namespace StealthInterviewAssistant.Views
                     else if (args.PropertyName == nameof(MainViewModel.Transcript))
                     {
                         // Auto-scroll to bottom when transcript updates
-                        Dispatcher.BeginInvoke(new Action(() => ScrollToBottom()), System.Windows.Threading.DispatcherPriority.Loaded);
+                        // Mark that we need to scroll after layout
+                        var captionTextBlock = this.FindName("CaptionTextBlock") as System.Windows.FrameworkElement;
+                        if (captionTextBlock != null)
+                        {
+                            // Use a simple delayed scroll approach
+                            Dispatcher.BeginInvoke(new Action(() => 
+                            {
+                                ScrollToBottom();
+                                // Additional scroll after a short delay to ensure content is measured
+                                var timer = new System.Windows.Threading.DispatcherTimer
+                                {
+                                    Interval = TimeSpan.FromMilliseconds(50)
+                                };
+                                timer.Tick += (sender, e) =>
+                                {
+                                    timer.Stop();
+                                    ScrollToBottom();
+                                };
+                                timer.Start();
+                            }), System.Windows.Threading.DispatcherPriority.Loaded);
+                        }
                     }
                 };
             }
@@ -474,11 +544,12 @@ namespace StealthInterviewAssistant.Views
                     try
                     {
                         // Start continuous rotating light animation for border
-                        var border = this.FindName("MainBorder") as System.Windows.FrameworkElement;
-                        if (border != null)
-                        {
-                            StartContinuousBorderAnimation(border);
-                        }
+                        // Removed: Neon border animation disabled
+                        // var border = this.FindName("MainBorder") as System.Windows.FrameworkElement;
+                        // if (border != null)
+                        // {
+                        //     StartContinuousBorderAnimation(border);
+                        // }
 
                     // Animate left panel (slide in from left)
                     var leftPanel = this.FindName("LeftPanel") as System.Windows.FrameworkElement;
@@ -639,6 +710,46 @@ namespace StealthInterviewAssistant.Views
                         }
                         buttonTransform.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, buttonSlide);
                     }
+
+                    // Animate control panel (slide in from right)
+                    var controlPanel = this.FindName("ControlPanel") as System.Windows.FrameworkElement;
+                    if (controlPanel != null)
+                    {
+                        // Ensure control panel starts invisible and positioned
+                        controlPanel.Opacity = 0.0;
+                        var controlTransform = controlPanel.RenderTransform as System.Windows.Media.TranslateTransform;
+                        if (controlTransform == null)
+                        {
+                            controlTransform = new System.Windows.Media.TranslateTransform();
+                            controlTransform.X = 20; // Start position (slide from right)
+                            controlPanel.RenderTransform = controlTransform;
+                        }
+                        else
+                        {
+                            controlTransform.X = 20; // Reset start position
+                        }
+
+                        var controlFade = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 0.0,
+                            To = 1.0,
+                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.6)),
+                            BeginTime = TimeSpan.FromSeconds(0.7),
+                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+
+                        var controlSlide = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 20,
+                            To = 0,
+                            Duration = new System.Windows.Duration(TimeSpan.FromSeconds(0.6)),
+                            BeginTime = TimeSpan.FromSeconds(0.7),
+                            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+
+                        controlPanel.BeginAnimation(System.Windows.UIElement.OpacityProperty, controlFade);
+                        controlTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, controlSlide);
+                    }
                     }
                     catch (Exception innerEx)
                     {
@@ -684,8 +795,8 @@ namespace StealthInterviewAssistant.Views
                     return;
                 }
 
-                // Create a simple rotating gradient brush with a bright light section
-                // The border itself stays dark, only the light rotates
+                // Create a simple rotating gradient brush with a single bright neon section
+                // The base border is solid, and a beautiful neon light rotates smoothly around it
                 var gradientBrush = new System.Windows.Media.LinearGradientBrush
                 {
                     StartPoint = new System.Windows.Point(0, 0),
@@ -693,41 +804,41 @@ namespace StealthInterviewAssistant.Views
                     MappingMode = System.Windows.Media.BrushMappingMode.RelativeToBoundingBox
                 };
 
-                // Create gradient with two short bright light sections - ONLY the lights have color
-                // Everything else is fully transparent so the dark border shows through
-                // Each light covers ~10% of the gradient for shorter light paths
+                // Continuous visible neon gradient - no fully transparent sections
+                // The gradient has a bright section that's always visible as it rotates
+                // All sections have at least medium visibility to prevent disappearing
                 
-                // Gradient stops in order from 0.0 to 1.0
-                // First light section (0.1 - 0.2), second light (0.5 - 0.6)
+                // Start with visible medium brightness (ensures always visible)
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.0));
                 
+                // Gradual fade in to bright neon (smooth transition)
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.0)); // Transparent (wraps from end)
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.15));
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.04)); // Transparent
+                    System.Windows.Media.Color.FromArgb(180, 90, 205, 185), 0.25));
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(180, 78, 201, 176), 0.08)); // First light: fade to bright
+                    System.Windows.Media.Color.FromArgb(210, 105, 215, 195), 0.35));
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.12)); // First light: brightest
+                    System.Windows.Media.Color.FromArgb(240, 115, 218, 198), 0.45));
+                
+                // Brightest neon center (peak brightness)
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.16)); // First light: brightest
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.50));
+                
+                // Gradual fade out from neon (smooth transition)
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(180, 78, 201, 176), 0.2)); // First light: fade out
+                    System.Windows.Media.Color.FromArgb(240, 115, 218, 198), 0.55));
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.24)); // Transparent
+                    System.Windows.Media.Color.FromArgb(210, 105, 215, 195), 0.65));
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.28)); // Transparent
+                    System.Windows.Media.Color.FromArgb(180, 90, 205, 185), 0.75));
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(180, 78, 201, 176), 0.32)); // Second light: fade to bright
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.85));
+                
+                // End with visible medium brightness (connects smoothly to start)
                 gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.36)); // Second light: brightest
-                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.4)); // Second light: brightest
-                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(180, 78, 201, 176), 0.44)); // Second light: fade out
-                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.48)); // Transparent
-                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 1.0)); // Transparent (wraps to 0.0)
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 1.0));
 
                 // Create a RotateTransform for the gradient
                 var rotateTransform = new System.Windows.Media.RotateTransform(0);
@@ -837,16 +948,133 @@ namespace StealthInterviewAssistant.Views
             }
         }
 
+        private void StartBorderNeonLightAnimation()
+        {
+            try
+            {
+                var neonLight = this.FindName("BorderNeonLight") as System.Windows.Shapes.Rectangle;
+                if (neonLight == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("BorderNeonLight not found");
+                    return;
+                }
+
+                // Create a gradient brush with small bright neon segments (same as AnswerButton style)
+                var gradientBrush = new System.Windows.Media.LinearGradientBrush();
+                gradientBrush.StartPoint = new System.Windows.Point(0, 0);
+                gradientBrush.EndPoint = new System.Windows.Point(1, 0);
+                gradientBrush.MappingMode = System.Windows.Media.BrushMappingMode.RelativeToBoundingBox;
+                gradientBrush.SpreadMethod = System.Windows.Media.GradientSpreadMethod.Repeat;
+
+                // Most of the gradient is transparent
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.0)); // Transparent at start
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.24)); // Transparent before first light
+                
+                // First bright neon segment (24% of the gradient - doubled length) with smooth fade-in gradient
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.26)); // Start fade in
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(80, 78, 201, 176), 0.30)); // Fade in
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.34)); // Fade in more
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(220, 100, 210, 190), 0.38)); // Getting bright
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.42)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.44)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(220, 100, 210, 190), 0.46)); // Fade out start
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.48)); // Fade out
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(80, 78, 201, 176), 0.50)); // Fade out more
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.52)); // End fade out
+                
+                // Transparent between lights
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.54)); // Transparent after first light
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.74)); // Transparent before second light
+                
+                // Second bright neon segment (24% of the gradient - doubled length) with smooth fade-in gradient
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 0.76)); // Start fade in
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(80, 78, 201, 176), 0.80)); // Fade in
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.84)); // Fade in more
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(220, 100, 210, 190), 0.88)); // Getting bright
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.92)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(255, 120, 220, 200), 0.94)); // Brightest
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(220, 100, 210, 190), 0.96)); // Fade out start
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(150, 78, 201, 176), 0.98)); // Fade out
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(80, 78, 201, 176), 0.99)); // Fade out more
+                gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
+                    System.Windows.Media.Color.FromArgb(0, 0, 0, 0), 1.0)); // End fade out
+
+                // Create a RotateTransform for the gradient (rotates around center)
+                var rotateTransform = new System.Windows.Media.RotateTransform(0);
+                rotateTransform.CenterX = 0.5;
+                rotateTransform.CenterY = 0.5;
+                gradientBrush.RelativeTransform = rotateTransform;
+
+                // Set the gradient brush as the stroke brush
+                neonLight.Stroke = gradientBrush;
+
+                // Create continuous rotation animation (0 to 360 degrees, repeating forever)
+                // 7 seconds per rotation
+                var rotationAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 0,
+                    To = 360,
+                    Duration = new System.Windows.Duration(TimeSpan.FromSeconds(7.0)), // 7 seconds per rotation
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                };
+
+                rotateTransform.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty, rotationAnimation);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error starting border neon light animation: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
         private void StartStartupAnimation()
         {
             try
             {
                 if (StartupLabelContainer == null) return;
 
-                // Animate only the BorderPath rectangle from smallest to correct size
+                // Ensure StartupLabelContainer is visible and on top
+                StartupLabelContainer.Visibility = Visibility.Visible;
+                StartupLabelContainer.Opacity = 0; // Start with 0 for fade-in animation
+                System.Windows.Controls.Panel.SetZIndex(StartupLabelContainer, 1000);
+                
+                // Ensure StartupLabel is visible
+                var startupLabel = this.FindName("StartupLabel") as System.Windows.Controls.TextBlock;
+                if (startupLabel != null)
+                {
+                    startupLabel.Visibility = Visibility.Visible;
+                    startupLabel.Opacity = 1.0; // Label content should be fully opaque (container controls overall visibility)
+                }
+
+                // Animate only the BorderPath rectangle from smallest to correct size with opacity fade-in
                 var borderPath = this.FindName("BorderPath") as System.Windows.Shapes.Rectangle;
                 if (borderPath != null)
                 {
+                    // Set initial opacity to 0 for fade-in animation
+                    borderPath.Opacity = 0.0;
+
                     var borderPathTransform = borderPath.RenderTransform as System.Windows.Media.ScaleTransform;
                     if (borderPathTransform == null)
                     {
@@ -871,8 +1099,18 @@ namespace StealthInterviewAssistant.Views
                         EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
                     };
 
+                    // Opacity animation (2 seconds - synchronized with scale animation)
+                    var opacityAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                    {
+                        From = 0.0,
+                        To = 1.0,
+                        Duration = new System.Windows.Duration(TimeSpan.FromSeconds(2.0)),
+                        EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                    };
+
                     borderPathTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scaleXAnimation);
                     borderPathTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scaleYAnimation);
+                    borderPath.BeginAnimation(System.Windows.UIElement.OpacityProperty, opacityAnimation);
                 }
 
                 // Create fade in animation (0.5 seconds)
@@ -898,10 +1136,24 @@ namespace StealthInterviewAssistant.Views
                 if (transform == null)
                 {
                     transform = new System.Windows.Media.TranslateTransform();
+                    transform.Y = -10; // Start position for slide-up animation
                     StartupLabelContainer.RenderTransform = transform;
                 }
+                else
+                {
+                    transform.Y = -10; // Reset to start position
+                }
 
-                // Start fade in and slide up
+                // Ensure container is visible before starting animation
+                StartupLabelContainer.Visibility = Visibility.Visible;
+                StartupLabelContainer.Opacity = 0; // Ensure starting opacity
+                
+                // Force layout update to ensure visibility
+                StartupLabelContainer.UpdateLayout();
+                
+                // Start fade in and slide up immediately with no delay
+                fadeIn.BeginTime = TimeSpan.Zero;
+                slideUp.BeginTime = TimeSpan.Zero;
                 StartupLabelContainer.BeginAnimation(System.Windows.UIElement.OpacityProperty, fadeIn);
                 transform.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slideUp);
 
@@ -967,6 +1219,9 @@ namespace StealthInterviewAssistant.Views
                         
                         // Start Answer button neon light animation
                         StartAnswerButtonNeonLightAnimation();
+                        
+                        // Start border neon light animation
+                        StartBorderNeonLightAnimation();
                     };
 
                     StartupLabelContainer.BeginAnimation(System.Windows.UIElement.OpacityProperty, fadeOut);
@@ -1816,12 +2071,43 @@ namespace StealthInterviewAssistant.Views
         {
             this.Left += deltaX;
             this.Top += deltaY;
+            
+            // Update help window position if it's visible
+            UpdateHelpWindowPosition();
+        }
+        
+        private void UpdateHelpWindowPosition()
+        {
+            if (_helpWindow != null && _helpWindow.IsVisible)
+            {
+                // Position to the right of the control panel
+                double controlPanelRight = this.Left + this.Width - 10; // Control panel right edge (10px margin from window right)
+                _helpWindow.Left = controlPanelRight + 10; // 10px spacing after control panel
+                
+                // Align with bottom of main panel (10px margin from bottom)
+                _helpWindow.Top = this.Top + this.Height - _helpWindow.ActualHeight - 10;
+            }
         }
 
         private void ResizeWindow(double deltaWidth, double deltaHeight)
         {
             this.Width = Math.Max(300, this.Width + deltaWidth);
             this.Height = Math.Max(200, this.Height + deltaHeight);
+            
+            // Update help window position if it's visible
+            UpdateHelpWindowPosition();
+        }
+        
+        private void Window_LocationChanged(object? sender, EventArgs e)
+        {
+            // Update help window position when main window moves
+            UpdateHelpWindowPosition();
+        }
+        
+        private void Window_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            // Update help window position when main window is resized
+            UpdateHelpWindowPosition();
         }
 
         private void ToggleVisibility()
@@ -1857,7 +2143,30 @@ namespace StealthInterviewAssistant.Views
         {
             if (CaptionScrollViewer != null && _autoScrollToBottom)
             {
-                CaptionScrollViewer.ScrollToEnd();
+                try
+                {
+                    // Update layout first to ensure content is measured
+                    CaptionScrollViewer.UpdateLayout();
+                    
+                    // Scroll to end - this will scroll to the very bottom
+                    CaptionScrollViewer.ScrollToEnd();
+                    
+                    // Also ensure vertical offset is at maximum
+                    if (CaptionScrollViewer.ScrollableHeight > 0)
+                    {
+                        // Use ExtentHeight to scroll to the absolute bottom
+                        double maxOffset = CaptionScrollViewer.ExtentHeight - CaptionScrollViewer.ViewportHeight;
+                        if (maxOffset > 0)
+                        {
+                            CaptionScrollViewer.ScrollToVerticalOffset(maxOffset);
+                        }
+                        else
+                        {
+                            CaptionScrollViewer.ScrollToVerticalOffset(CaptionScrollViewer.ExtentHeight);
+                        }
+                    }
+                }
+                catch { /* Ignore scroll errors */ }
             }
         }
 
@@ -2193,6 +2502,9 @@ namespace StealthInterviewAssistant.Views
 
         private void SwitchCursorSystem(CursorSystem system)
         {
+            // Check if system is actually changing
+            bool systemChanged = system != _currentCursorSystem;
+            
             _currentCursorSystem = system;
             System.Windows.Input.Cursor cursor = null;
             
@@ -2205,6 +2517,24 @@ namespace StealthInterviewAssistant.Views
                 cursor = System.Windows.Input.Cursors.IBeam;
             }
             // Normal system: cursor is null, which restores original cursors
+
+            // Skip recursive update only if:
+            // 1. System hasn't changed AND
+            // 2. Both cursors are non-null AND equal
+            // This ensures we always update on startup (when both are null) or when switching systems
+            if (!systemChanged && cursor != null && _lastAppliedCursor != null && cursor == _lastAppliedCursor)
+            {
+                // Only skip if we're not changing systems and cursors are the same
+                // But still update button states in case they're not set correctly
+                UpdateButtonStates(system);
+                return;
+            }
+            
+            _lastAppliedCursor = cursor;
+            _previousCursorSystem = system;
+            
+            // Clear cache when switching cursor systems
+            _cursorCache.Clear();
 
             // Update window cursor (this will cascade to all child elements unless overridden)
             this.Cursor = cursor;
@@ -2220,9 +2550,17 @@ namespace StealthInterviewAssistant.Views
             }
 
             // Update button states
+            UpdateButtonStates(system);
+
+            // Update WebView2 cursor via JavaScript
+            UpdateWebView2Cursor(system);
+        }
+
+        private void UpdateButtonStates(CursorSystem system)
+        {
+            // Update button states
             if (ArrowCursorButton != null)
             {
-                var arrowStyle = ArrowCursorButton.Style;
                 if (system == CursorSystem.Arrow)
                 {
                     var activeColor = System.Windows.Media.Color.FromRgb(0x4E, 0xC9, 0xB0);
@@ -2271,9 +2609,6 @@ namespace StealthInterviewAssistant.Views
                     NormalCursorButton.BorderBrush = new System.Windows.Media.SolidColorBrush(defaultBorderColor);
                 }
             }
-
-            // Update WebView2 cursor via JavaScript
-            UpdateWebView2Cursor(system);
         }
 
         private async Task UpdateWebView2Cursor(CursorSystem system)
@@ -2346,6 +2681,253 @@ namespace StealthInterviewAssistant.Views
             SwitchCursorSystem(CursorSystem.Normal);
         }
 
+        private void ModeToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                // Toggle the mode
+                viewModel.IsInterviewMode = !viewModel.IsInterviewMode;
+                
+                // Update button text
+                if (ModeToggleButtonText != null)
+                {
+                    ModeToggleButtonText.Text = viewModel.IsInterviewMode ? "I" : "N";
+                }
+                
+                // Show/hide LeftPanel (live caption panel) and GridSplitter based on mode
+                if (LeftPanel != null)
+                {
+                    if (viewModel.IsInterviewMode)
+                    {
+                        // Interview Mode: Show LeftPanel
+                        LeftPanel.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        // Normal Mode: Hide LeftPanel
+                        LeftPanel.Visibility = Visibility.Collapsed;
+                    }
+                }
+                
+                // Also hide/show the GridSplitter
+                if (MainGridSplitter != null)
+                {
+                    if (viewModel.IsInterviewMode)
+                    {
+                        // Interview Mode: Show GridSplitter
+                        MainGridSplitter.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        // Normal Mode: Hide GridSplitter
+                        MainGridSplitter.Visibility = Visibility.Collapsed;
+                    }
+                }
+                
+                // Also hide/show the SplitterBorder (visual splitter)
+                var splitterBorder = this.FindName("SplitterBorder") as System.Windows.FrameworkElement;
+                if (splitterBorder != null)
+                {
+                    if (viewModel.IsInterviewMode)
+                    {
+                        // Interview Mode: Show SplitterBorder
+                        splitterBorder.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        // Normal Mode: Hide SplitterBorder
+                        splitterBorder.Visibility = Visibility.Collapsed;
+                    }
+                }
+                
+                // Adjust column widths based on mode
+                var captionColumn = this.FindName("CaptionColumn") as System.Windows.Controls.ColumnDefinition;
+                if (captionColumn != null)
+                {
+                    // Get the parent grid to access the splitter column
+                    var parentGrid = captionColumn.Parent as System.Windows.Controls.Grid;
+                    if (parentGrid != null && parentGrid.ColumnDefinitions.Count > 2)
+                    {
+                        var splitterColumn = parentGrid.ColumnDefinitions[1]; // Splitter column is at index 1
+                        var rightColumn = parentGrid.ColumnDefinitions[2]; // Right column (WebView) is at index 2
+                        
+                        if (viewModel.IsInterviewMode)
+                        {
+                            // Interview Mode: Restore original column widths and MinWidth constraints
+                            captionColumn.Width = new System.Windows.GridLength(5, System.Windows.GridUnitType.Star);
+                            captionColumn.MinWidth = 100;
+                            splitterColumn.Width = new System.Windows.GridLength(10);
+                            splitterColumn.MinWidth = 10;
+                            rightColumn.MinWidth = 100;
+                        }
+                        else
+                        {
+                            // Normal Mode: Collapse both left column and splitter column so WebView takes full width
+                            // Also set MinWidth to 0 to override the XAML MinWidth constraints
+                            captionColumn.Width = new System.Windows.GridLength(0);
+                            captionColumn.MinWidth = 0;
+                            splitterColumn.Width = new System.Windows.GridLength(0);
+                            splitterColumn.MinWidth = 0;
+                            rightColumn.MinWidth = 0; // Allow right column to expand fully
+                        }
+                    }
+                }
+                
+                // Show/hide button groups container based on mode
+                if (ButtonGroupsContainer != null)
+                {
+                    if (viewModel.IsInterviewMode)
+                    {
+                        // Interview Mode: Show button groups
+                        ButtonGroupsContainer.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        // Normal Mode: Hide button groups
+                        ButtonGroupsContainer.Visibility = Visibility.Collapsed;
+                    }
+                }
+                
+                // Adjust RightPanel margin based on mode to remove gap
+                if (RightPanel != null)
+                {
+                    if (viewModel.IsInterviewMode)
+                    {
+                        // Interview Mode: Restore original margin (5, 10, 8, 10)
+                        RightPanel.Margin = new System.Windows.Thickness(5, 10, 8, 10);
+                    }
+                    else
+                    {
+                        // Normal Mode: Remove left margin to eliminate gap (10, 10, 8, 10)
+                        RightPanel.Margin = new System.Windows.Thickness(10, 10, 8, 10);
+                    }
+                }
+                
+                // Set window width based on mode
+                if (viewModel.IsInterviewMode)
+                {
+                    // Interview Mode: Set width to 680
+                    this.Width = 680;
+                }
+                else
+                {
+                    // Normal Mode: Set width to 340
+                    this.Width = 400;
+                }
+                
+                // Update help window position after width change
+                UpdateHelpWindowPosition();
+            }
+        }
+
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Toggle independent help window
+            if (_helpWindow == null || !_helpWindow.IsVisible)
+            {
+                // Create or show help window
+                if (_helpWindow == null)
+                {
+                    _helpWindow = new HelpWindow();
+                    _helpWindow.Owner = this;
+                }
+                
+                // Position to the right of the control panel
+                // Control panel is 55px wide with 10px right margin
+                // Position help window to the right of control panel with 10px spacing
+                double controlPanelRight = this.Left + this.Width - 10; // Control panel right edge (10px margin from window right)
+                _helpWindow.Left = controlPanelRight + 10; // 10px spacing after control panel
+                
+                // Show window first to get its actual height (since SizeToContent="Height")
+                _helpWindow.Show();
+                _helpWindow.UpdateLayout(); // Ensure layout is updated
+                
+                // Align with bottom of main panel (10px margin from bottom)
+                _helpWindow.Top = this.Top + this.Height - _helpWindow.ActualHeight - 10;
+                
+                // Start fade-in animation
+                _helpWindow.StartFadeIn();
+                
+                // Update ViewModel to reflect help window is visible
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.IsHelpWindowVisible = true;
+                }
+            }
+            else
+            {
+                // Start fade-out animation and hide
+                _helpWindow.StartFadeOut(() =>
+                {
+                    _helpWindow.Hide();
+                    
+                    // Update ViewModel to reflect help window is hidden
+                    if (DataContext is MainViewModel viewModel)
+                    {
+                        viewModel.IsHelpWindowVisible = false;
+                    }
+                });
+            }
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Exit the application (not hide) - use graceful shutdown
+            PerformGracefulShutdown();
+        }
+
+        private async void PerformGracefulShutdown()
+        {
+            try
+            {
+                // Stop all timers immediately to prevent any further operations
+                if (_moveTimer != null)
+                {
+                    _moveTimer.Stop();
+                    _moveTimer.Tick -= MoveTimer_Tick;
+                }
+
+                if (_resizeTimer != null)
+                {
+                    _resizeTimer.Stop();
+                    _resizeTimer.Tick -= ResizeTimer_Tick;
+                }
+
+                // Close WebView2 explicitly - this is critical for long-running sessions
+                if (StealthBrowser != null)
+                {
+                    try
+                    {
+                        // Remove event handlers before closing to prevent issues
+                        StealthBrowser.CoreWebView2InitializationCompleted -= StealthBrowser_CoreWebView2InitializationCompleted;
+                        StealthBrowser.NavigationCompleted -= StealthBrowser_NavigationCompleted;
+
+                        // Dispose the WebView2 control to release all resources
+                        // This will automatically close CoreWebView2 and clean up all browser processes
+                        StealthBrowser.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error closing WebView2: {ex.Message}");
+                        // Continue with shutdown even if WebView2 cleanup fails
+                    }
+                }
+
+                // Give WebView2 a brief moment to clean up its processes
+                // This prevents crashes when exiting after long runtime
+                await Task.Delay(100);
+
+                // Now shutdown the application
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error during graceful shutdown: {ex.Message}");
+                // Force shutdown even if there's an error
+                Application.Current.Shutdown();
+            }
+        }
+
         private void CaretCursorButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
             // Always show Caret cursor when hovering over CaretCursorButton
@@ -2377,20 +2959,37 @@ namespace StealthInterviewAssistant.Views
                 // Skip CaretCursorButton - it has special handling
                 if (fe.Name != "CaretCursorButton")
                 {
+                    System.Windows.Input.Cursor cursorToApply;
+                    
                     // Special handling for buttons in Normal mode: restore default Hand cursor
                     if (cursor == null && fe is System.Windows.Controls.Primitives.ButtonBase)
                     {
                         // In Normal mode, buttons should show Hand cursor (default Windows behavior)
-                        fe.Cursor = System.Windows.Input.Cursors.Hand;
+                        cursorToApply = System.Windows.Input.Cursors.Hand;
                     }
                     else
                     {
-                        fe.Cursor = cursor;
+                        cursorToApply = cursor;
+                    }
+                    
+                    // Always update if:
+                    // 1. Element is not in cache, OR
+                    // 2. Cached cursor doesn't match what we want to apply, OR
+                    // 3. Element's current cursor doesn't match what we want to apply
+                    // This ensures we fix any XAML-set cursors that don't match the cursor system
+                    bool needsUpdate = !_cursorCache.ContainsKey(element) 
+                        || _cursorCache[element] != cursorToApply
+                        || fe.Cursor != cursorToApply;
+                    
+                    if (needsUpdate)
+                    {
+                        fe.Cursor = cursorToApply;
+                        _cursorCache[element] = cursorToApply;
                     }
                 }
             }
 
-            // Recursively update all children
+            // Recursively update all children (limit depth to prevent excessive recursion)
             int childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
             for (int i = 0; i < childrenCount; i++)
             {
@@ -2401,6 +3000,12 @@ namespace StealthInterviewAssistant.Views
 
         protected override void OnClosed(EventArgs e)
         {
+            // Dispose ViewModel to clean up event handlers and resources
+            if (DataContext is IDisposable disposableViewModel)
+            {
+                disposableViewModel.Dispose();
+            }
+
             // Unregister all hotkeys
             if (_helper != null && _helper.Handle != IntPtr.Zero)
             {
@@ -2442,6 +3047,56 @@ namespace StealthInterviewAssistant.Views
             if (_hwndSource != null)
             {
                 _hwndSource.RemoveHook(WndProc);
+                _hwndSource = null;
+            }
+
+            // Stop and dispose timers
+            if (_moveTimer != null)
+            {
+                _moveTimer.Stop();
+                _moveTimer.Tick -= MoveTimer_Tick;
+                _moveTimer = null;
+            }
+
+            if (_resizeTimer != null)
+            {
+                _resizeTimer.Stop();
+                _resizeTimer.Tick -= ResizeTimer_Tick;
+                _resizeTimer = null;
+            }
+
+            // Clean up WebView2 as backup safety measure
+            // (Primary cleanup should happen in PerformGracefulShutdown, but this ensures cleanup even if shutdown is called directly)
+            if (StealthBrowser != null)
+            {
+                try
+                {
+                    // Remove event handlers before closing
+                    StealthBrowser.CoreWebView2InitializationCompleted -= StealthBrowser_CoreWebView2InitializationCompleted;
+                    StealthBrowser.NavigationCompleted -= StealthBrowser_NavigationCompleted;
+
+                    // Dispose the WebView2 control to release all resources
+                    // This will automatically close CoreWebView2 and clean up all browser processes
+                    StealthBrowser.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error cleaning up WebView2 in OnClosed: {ex.Message}");
+                    // Continue with cleanup even if WebView2 disposal fails
+                }
+            }
+
+            // Close help window if it exists
+            if (_helpWindow != null)
+            {
+                try
+                {
+                    _helpWindow.Close();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error closing help window: {ex.Message}");
+                }
             }
 
             base.OnClosed(e);

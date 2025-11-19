@@ -15,6 +15,8 @@
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded"
         SourceInitialized="Window_SourceInitialized"
+        LocationChanged="Window_LocationChanged"
+        SizeChanged="Window_SizeChanged"
         Cursor="Arrow">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -366,11 +368,11 @@
             <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
         </Border.RenderTransform>
         <Grid Cursor="Arrow">
-            <!-- Dark dashed border (static) -->
+            <!-- Dashed border (static base) -->
             <Rectangle x:Name="BorderPath"
                        StrokeThickness="2"
-                       StrokeDashArray="4,4"
                        Stroke="#D03F3F46"
+                       StrokeDashArray="5,3"
                        Fill="Transparent"
                        RadiusX="8"
                        RadiusY="8"
@@ -381,15 +383,16 @@
                     <ScaleTransform ScaleX="0.1" ScaleY="0.1"/>
                 </Rectangle.RenderTransform>
             </Rectangle>
-            <!-- Rotating light overlay -->
-            <Rectangle x:Name="LeonLightPath"
+            <!-- Rotating neon light border (same animation as AnswerButton) -->
+            <Rectangle x:Name="BorderNeonLight"
                        StrokeThickness="2"
-                       StrokeDashArray="2,6"
+                       StrokeDashArray="5,3"
                        Fill="Transparent"
                        RadiusX="8"
                        RadiusY="8"
                        HorizontalAlignment="Stretch"
-                       VerticalAlignment="Stretch"/>
+                       VerticalAlignment="Stretch"
+                       IsHitTestVisible="False"/>
             <Grid x:Name="ContentGrid" MouseDown="Grid_MouseDown" Visibility="Hidden" Cursor="Arrow">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -698,7 +701,8 @@
                 </Rectangle.RenderTransform>
             </Rectangle>
         </Border>
-        <GridSplitter Grid.Row="0"
+        <GridSplitter x:Name="MainGridSplitter"
+                     Grid.Row="0"
                      Grid.Column="1" 
                      HorizontalAlignment="Stretch" 
                      Background="Transparent"
@@ -989,6 +993,7 @@
                     </Grid>
                 </Border>
             </Grid>
+        </Grid>
             <!-- Startup Animation Label - Centered overlay on top of everything -->
             <Border x:Name="StartupLabelContainer"
                     HorizontalAlignment="Center"
@@ -999,6 +1004,8 @@
                     CornerRadius="6"
                     Padding="16,10"
                     Opacity="0"
+                    Visibility="Visible"
+                    Panel.ZIndex="1000"
                     RenderTransformOrigin="0.5,0.5">
                 <Border.RenderTransform>
                     <TranslateTransform Y="-10"/>
@@ -1008,9 +1015,10 @@
                           FontSize="14"
                           Foreground="#B0B0B0"
                           HorizontalAlignment="Center"
-                          VerticalAlignment="Center"/>
+                          VerticalAlignment="Center"
+                          Visibility="Visible"
+                          Opacity="1.0"/>
             </Border>
-        </Grid>
             </Grid>
     </Border>
     
@@ -1019,7 +1027,12 @@
             Grid.Column="1"
             Margin="0,10,10,10"
             VerticalAlignment="Stretch"
-            Cursor="Arrow">
+            Cursor="Arrow"
+            Opacity="0"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <TranslateTransform X="20"/>
+        </Border.RenderTransform>
         <!--
         Background="#D0252526"
         BorderBrush="#D03F3F46"
@@ -1027,36 +1040,161 @@
         CornerRadius="8,8,8,8"
         Padding="6"
         -->
-        <StackPanel Orientation="Vertical"
-                   VerticalAlignment="Center"
-                   HorizontalAlignment="Center">
-            <Button x:Name="ArrowCursorButton"
-                   Content="A"
+        <Grid VerticalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0"
+                       Orientation="Vertical"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center">
+                <Button x:Name="ArrowCursorButton"
+                       Content="A"
+                       Width="28" Height="28"
+                       MinWidth="28" MaxWidth="28"
+                       Margin="0,4,0,4"
+                       ToolTip="Use Arrow cursor system"
+                       Click="ArrowCursorButton_Click"
+                       Style="{StaticResource ActionButtonStyle}"/>
+                <Button x:Name="CaretCursorButton"
+                       Content="I"
+                       Width="28" Height="28"
+                       MinWidth="28" MaxWidth="28"
+                       Margin="0,4,0,4"
+                       ToolTip="Use Caret cursor system"
+                       Click="CaretCursorButton_Click"
+                       MouseEnter="CaretCursorButton_MouseEnter"
+                       MouseLeave="CaretCursorButton_MouseLeave"
+                       Style="{StaticResource ActionButtonStyle}"/>
+                <Button x:Name="NormalCursorButton"
+                       Content="N"
+                       Width="28" Height="28"
+                       MinWidth="28" MaxWidth="28"
+                       Margin="0,4,0,4"
+                       ToolTip="Use Normal cursor system (original cursors)"
+                       Click="NormalCursorButton_Click"
+                       Style="{StaticResource ActionButtonStyle}"/>
+                <Button Command="{Binding ToggleLoggingCommand}"
                    Width="28" Height="28"
                    MinWidth="28" MaxWidth="28"
-                   Margin="0,4,0,4"
-                   ToolTip="Use Arrow cursor system"
-                   Click="ArrowCursorButton_Click"
-                   Style="{StaticResource ActionButtonStyle}"/>
-            <Button x:Name="CaretCursorButton"
-                   Content="I"
-                   Width="28" Height="28"
-                   MinWidth="28" MaxWidth="28"
-                   Margin="0,4,0,4"
-                   ToolTip="Use Caret cursor system"
-                   Click="CaretCursorButton_Click"
-                   MouseEnter="CaretCursorButton_MouseEnter"
-                   MouseLeave="CaretCursorButton_MouseLeave"
-                   Style="{StaticResource ActionButtonStyle}"/>
-            <Button x:Name="NormalCursorButton"
-                   Content="N"
-                   Width="28" Height="28"
-                   MinWidth="28" MaxWidth="28"
-                   Margin="0,4,0,4"
-                   ToolTip="Use Normal cursor system (original cursors)"
-                   Click="NormalCursorButton_Click"
-                   Style="{StaticResource ActionButtonStyle}"/>
+                   Margin="0,14,0,4">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+                        <Setter Property="Background" Value="#2D2D30"/>
+                        <Setter Property="BorderBrush" Value="#3F3F46"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLoggingEnabled}" Value="True">
+                                <Setter Property="Background" Value="#4EC9B0"/>
+                                <Setter Property="BorderBrush" Value="#4EC9B0"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <Button.ToolTip>
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Debug Logging: OFF"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoggingEnabled}" Value="True">
+                                        <Setter Property="Text" Value="Debug Logging: ON"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Button.ToolTip>
+                <TextBlock FontSize="12"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="📝"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="TextAlignment" Value="Center"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoggingEnabled}" Value="True">
+                                    <Setter Property="Text" Value="✓"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Button>
         </StackPanel>
+        <Button Grid.Row="1"
+               x:Name="ModeToggleButton"
+               Width="28" Height="28"
+               MinWidth="28" MaxWidth="28"
+               Margin="0,0,0,14"
+               ToolTip="Toggle between Normal Mode and Interview Mode"
+               Click="ModeToggleButton_Click"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Bottom">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+                    <Setter Property="Background" Value="#2D2D30"/>
+                    <Setter Property="BorderBrush" Value="#3F3F46"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsInterviewMode}" Value="True">
+                            <Setter Property="Background" Value="#4EC9B0"/>
+                            <Setter Property="BorderBrush" Value="#4EC9B0"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+            <TextBlock x:Name="ModeToggleButtonText"
+                       Text="I"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       TextAlignment="Center"/>
+        </Button>
+        <Button Grid.Row="2"
+               x:Name="HelpButton"
+               Width="28" Height="28"
+               MinWidth="28" MaxWidth="28"
+               Margin="0,4,0,4"
+               ToolTip="Show/Hide hotkeys help"
+               Click="HelpButton_Click"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Bottom">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+                    <Setter Property="Background" Value="#2D2D30"/>
+                    <Setter Property="BorderBrush" Value="#3F3F46"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsHelpWindowVisible}" Value="True">
+                            <Setter Property="Background" Value="#4EC9B0"/>
+                            <Setter Property="BorderBrush" Value="#4EC9B0"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+            <TextBlock Text="?"
+                       FontSize="14"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       TextAlignment="Center"/>
+        </Button>
+        <Button Grid.Row="3"
+               x:Name="ExitButton"
+               Content="✕"
+               Width="28" Height="28"
+               MinWidth="28" MaxWidth="28"
+               Margin="0,4,0,4"
+               ToolTip="Exit application"
+               Click="ExitButton_Click"
+               Style="{StaticResource ActionButtonStyle}"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Bottom"/>
+    </Grid>
     </Border>
     </Grid>
 </Window>
