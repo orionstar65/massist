@@ -57,7 +57,7 @@ namespace StealthInterviewAssistant.Views
         
         // Cursor system state
         private enum CursorSystem { Arrow, Caret, Normal }
-        private CursorSystem _currentCursorSystem = CursorSystem.Arrow;
+        private CursorSystem _currentCursorSystem = CursorSystem.Normal;
 
         public MainWindow()
         {
@@ -396,10 +396,10 @@ namespace StealthInterviewAssistant.Views
             // Start the startup label animation (content panels will appear after label hides)
             StartStartupAnimation();
             
-            // Initialize cursor system (default to Arrow)
+            // Initialize cursor system (default to Normal)
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                SwitchCursorSystem(CursorSystem.Arrow);
+                SwitchCursorSystem(CursorSystem.Normal);
             }), System.Windows.Threading.DispatcherPriority.Loaded);
             
             // Subscribe to property changes
@@ -554,11 +554,11 @@ namespace StealthInterviewAssistant.Views
                         gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
                             System.Windows.Media.Color.FromArgb(0, 0x3F, 0x3F, 0x46), 0.0)); // Transparent at top
                         gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                            System.Windows.Media.Color.FromArgb(128, 0x3F, 0x3F, 0x46), 0.3)); // Fade in
+                            System.Windows.Media.Color.FromArgb(80, 0x3F, 0x3F, 0x46), 0.4)); // Fade in
                         gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
                             System.Windows.Media.Color.FromArgb(180, 0x3F, 0x3F, 0x46), 0.5)); // Most visible in middle
                         gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
-                            System.Windows.Media.Color.FromArgb(128, 0x3F, 0x3F, 0x46), 0.7)); // Fade out
+                            System.Windows.Media.Color.FromArgb(80, 0x3F, 0x3F, 0x46), 0.6)); // Fade out
                         gradientBrush.GradientStops.Add(new System.Windows.Media.GradientStop(
                             System.Windows.Media.Color.FromArgb(0, 0x3F, 0x3F, 0x46), 1.0)); // Transparent at bottom
 
@@ -2377,7 +2377,16 @@ namespace StealthInterviewAssistant.Views
                 // Skip CaretCursorButton - it has special handling
                 if (fe.Name != "CaretCursorButton")
                 {
-                    fe.Cursor = cursor;
+                    // Special handling for buttons in Normal mode: restore default Hand cursor
+                    if (cursor == null && fe is System.Windows.Controls.Primitives.ButtonBase)
+                    {
+                        // In Normal mode, buttons should show Hand cursor (default Windows behavior)
+                        fe.Cursor = System.Windows.Input.Cursors.Hand;
+                    }
+                    else
+                    {
+                        fe.Cursor = cursor;
+                    }
                 }
             }
 

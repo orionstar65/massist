@@ -401,7 +401,7 @@
             <Grid Grid.Row="0" Grid.Column="0" Cursor="Arrow">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="CaptionColumn" Width="5*" MinWidth="100"/>
-                <ColumnDefinition Width="5" MinWidth="5"/>
+                <ColumnDefinition Width="10" MinWidth="10"/>
                 <ColumnDefinition Width="5*" MinWidth="100"/>
             </Grid.ColumnDefinitions>
         
@@ -679,18 +679,18 @@
         <Border Grid.Row="0"
                 Grid.Column="1" 
                 HorizontalAlignment="Center"
-                Width="5"
+                Width="10"
                 Background="Transparent"
                 x:Name="SplitterBorder"
                 IsHitTestVisible="False">
             <Rectangle x:Name="SplitterRectangle"
                       Stroke="#803F3F46" 
-                      StrokeThickness="2.5"
+                      StrokeThickness="5"
                       StrokeDashArray="3,3"
                       Fill="Transparent"
                       VerticalAlignment="Stretch"
                       HorizontalAlignment="Center"
-                      Width="2.5"
+                      Width="5"
                       Opacity="0"
                       RenderTransformOrigin="0.5,0.5">
                 <Rectangle.RenderTransform>
@@ -702,7 +702,7 @@
                      Grid.Column="1" 
                      HorizontalAlignment="Stretch" 
                      Background="Transparent"
-                     Width="5"
+                     Width="10"
                      ResizeBehavior="PreviousAndNext"
                      ShowsPreview="False"/>
         
@@ -1004,8 +1004,8 @@
                     <TranslateTransform Y="-10"/>
                 </Border.RenderTransform>
                 <TextBlock x:Name="StartupLabel"
-                          Text="Powered by ACC - JJH @2025"
-                          FontSize="13"
+                          Text="🚀 Powered by ACC - JJH @2025"
+                          FontSize="14"
                           Foreground="#B0B0B0"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"/>
@@ -1017,7 +1017,7 @@
     <!-- Control Panel: Right Side Button Group (Outside MainBorder) -->
     <Border x:Name="ControlPanel"
             Grid.Column="1"
-            Margin="5,10,10,10"
+            Margin="0,10,10,10"
             VerticalAlignment="Stretch"
             Cursor="Arrow">
         <!--
