@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:;">
+  <title>Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="settings-container">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button class="close-button" id="closeButton">✕</button>
+    </div>
+    
+    <div class="settings-content">
+      <!-- Tabs -->
+      <div class="settings-tabs">
+        <button class="tab-button active" data-tab="hotkeys">Hotkeys</button>
+        <button class="tab-button" data-tab="server">Server Settings</button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- Hotkeys Tab -->
+        <div class="tab-pane active" id="hotkeysTab">
+          <h3 class="section-title">Hotkeys</h3>
+          <p class="settings-description">
+            Configure global hotkeys for the application. Hotkeys work even when the app is not focused.
+          </p>
+          <p class="settings-warning">
+            ⚠️ On macOS, ensure the app has Accessibility permissions in System Preferences.
+          </p>
+        
+          <div class="hotkeys-list" id="hotkeysList">
+            <!-- Hotkeys will be populated by JavaScript -->
+          </div>
+          
+          <div class="settings-actions">
+            <button class="action-button secondary" id="resetButton">Reset to Defaults</button>
+            <button class="action-button primary" id="applyButton">Apply Changes</button>
+          </div>
+        </div>
+
+        <!-- Server Settings Tab -->
+        <div class="tab-pane" id="serverTab">
+          <h3 class="section-title">Server Settings</h3>
+          <p class="settings-description">
+            Configure connection to the prompt management server. Prompts will be loaded from the server on app startup.
+          </p>
+
+          <div class="server-settings-form">
+            <div class="form-group">
+              <label for="serverUrl">Server URL</label>
+              <input type="text" id="serverUrl" placeholder="http://localhost:3000" />
+              <span class="form-hint">Enter the backend server URL (e.g., http://localhost:3000 or http://192.168.1.100:3000)</span>
+            </div>
+
+            <div class="form-group">
+              <label for="username">Username</label>
+              <input type="text" id="username" placeholder="Enter your username" />
+            </div>
+
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" placeholder="Enter your password" />
+            </div>
+
+            <div class="server-status" id="serverStatus">
+              <span class="status-indicator" id="statusIndicator"></span>
+              <span class="status-text" id="statusText">Not connected</span>
+            </div>
+
+            <div class="settings-actions">
+              <button class="action-button secondary" id="testConnectionButton">Test Connection</button>
+              <button class="action-button primary" id="loginButton">Login</button>
+              <button class="action-button" id="reloadPromptsButton" style="display: none;">Reload Prompts</button>
+              <button class="action-button secondary" id="logoutButton" style="display: none;">Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="settings-status" id="statusMessage"></div>
+    </div>
+  </div>
+  
+  <script src="settings.js"></script>
+</body>
+</html>
+
+

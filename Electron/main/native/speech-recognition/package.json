@@ -1,0 +1,18 @@
+{
+  "name": "speech-recognition-native",
+  "version": "1.0.0",
+  "description": "Native macOS Speech Recognition addon",
+  "main": "index.js",
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "rebuild": "node-gyp rebuild"
+  },
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "^7.0.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.0"
+  }
+}
+

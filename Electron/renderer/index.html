@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; frame-src 'self' https:;">
+  <title>Stealth Interview Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Main Border -->
+      <div class="main-border" id="mainBorder">
+        <!-- Content Grid -->
+        <div class="content-grid" id="contentGrid">
+          <!-- Left Panel: Caption -->
+          <div class="left-panel" id="leftPanel">
+            <div class="panel-content">
+              <!-- Buttons Row -->
+              <div class="buttons-row">
+                <div class="button-group-left">
+                  <button class="icon-button" id="startStopButton" title="Start Live Captions">
+                    <span class="icon">▶</span>
+                    <span class="hotkey-badge"></span>
+                  </button>
+                  <button class="icon-button" id="copyDeltaButton" title="Copy new text since last copy">
+                    <span class="icon">📋</span>
+                    <span class="hotkey-badge"></span>
+                  </button>
+                  <button class="icon-button" id="clearButton" title="Clear transcript buffer">
+                    <span class="icon">✖</span>
+                    <span class="hotkey-badge"></span>
+                  </button>
+                  
+                  <!-- Font Size Slider -->
+                  <div class="font-size-control">
+                    <input type="range" id="fontSizeSlider" min="12" max="18" value="15" class="slider">
+                    <span class="font-size-label" id="fontSizeLabel">15</span>
+                  </div>
+                  
+                  <!-- Caption Source Toggle -->
+                  <div class="caption-source-toggle">
+                    <label class="caption-source-label">
+                      <input type="radio" name="captionSource" value="window" checked>
+                      <span>🪟 Window</span>
+                    </label>
+                    <label class="caption-source-label">
+                      <input type="radio" name="captionSource" value="microphone">
+                      <span>🎤 Mic</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- Status Light -->
+                <div class="status-light" id="statusLight" title="Ready - Click Start to begin capturing"></div>
+              </div>
+
+              <!-- Calendar Section -->
+              <div class="calendar-section" id="calendarSection" style="display: none;">
+                <div class="calendar-controls">
+                  <button class="action-button" id="connectCalendarButton">📅 Connect Calendar</button>
+                  <button class="action-button" id="refreshCalendarButton" disabled>🔄</button>
+                  <button class="action-button" id="toggleCalendarButton">✖</button>
+                </div>
+                <div class="calendar-status" id="calendarStatus">Not connected to Google Calendar</div>
+                <div class="calendar-events" id="calendarEvents"></div>
+              </div>
+
+              <!-- Caption Box -->
+              <div class="caption-box">
+                <div class="caption-scroll" id="captionScroll">
+                  <div class="caption-text" id="captionText"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Splitter -->
+          <div class="splitter" id="splitter"></div>
+
+          <!-- Right Panel: Browser -->
+          <div class="right-panel" id="rightPanel">
+            <div class="panel-content">
+              <!-- Address Bar -->
+              <div class="address-bar">
+                <button class="icon-button" id="chatGPTButton" title="Open ChatGPT">
+                  <span>CG</span>
+                  <span class="hotkey-badge"></span>
+                </button>
+                <button class="icon-button" id="deepSeekButton" title="Open DeepSeek">
+                  <span>D</span>
+                  <span class="hotkey-badge"></span>
+                </button>
+                <button class="icon-button" id="perplexityButton" title="Open Perplexity">
+                  <span>P</span>
+                  <span class="hotkey-badge"></span>
+                </button>
+                <button class="icon-button" id="grokButton" title="Open Grok">
+                  <span>G</span>
+                  <span class="hotkey-badge"></span>
+                </button>
+              </div>
+
+              <!-- WebView -->
+              <div class="webview-container">
+                <webview id="stealthBrowser" src="https://chatgpt.com"></webview>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Button Groups Row -->
+        <div class="button-groups-row" id="buttonGroupsRow">
+          <!-- Left Button Group: Toggle Buttons -->
+          <div class="button-group">
+            <div class="toggle-buttons" id="toggleButtons">
+              <!-- Prompt buttons will be dynamically generated -->
+            </div>
+          </div>
+
+          <!-- Middle Button Group: Duration -->
+          <div class="button-group">
+            <div class="radio-buttons">
+              <label class="radio-button active">
+                <input type="radio" name="duration" value="1min" checked>
+                <span>1m</span>
+              </label>
+              <label class="radio-button">
+                <input type="radio" name="duration" value="1-2mins">
+                <span>1-2m</span>
+              </label>
+              <label class="radio-button">
+                <input type="radio" name="duration" value="2-3mins">
+                <span>2-3m</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Right Button Group: Action Buttons -->
+          <div class="button-group">
+            <div class="action-buttons">
+              <button class="action-button-primary" id="answerButton">
+                Answer(/)
+              </button>
+              <button class="action-button-large" id="followUpButton">
+                FollowUp(f)
+              </button>
+              <button class="action-button-large" id="clarifyButton">
+                Clarify(c)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control Panel -->
+      <div class="control-panel" id="controlPanel">
+        <div class="control-buttons">
+          <button class="control-button" id="arrowCursorButton" title="Use Arrow cursor system">
+            A
+            <span class="hotkey-badge"></span>
+          </button>
+          <button class="control-button" id="caretCursorButton" title="Use Caret cursor system">
+            I
+            <span class="hotkey-badge"></span>
+          </button>
+          <button class="control-button" id="normalCursorButton" title="Use Normal cursor system">
+            N
+            <span class="hotkey-badge"></span>
+          </button>
+          <button class="control-button" id="loggingButton" title="Debug Logging: OFF">
+            📝
+            <span class="hotkey-badge"></span>
+          </button>
+          <button class="control-button" id="modeToggleButton" title="Toggle between Normal Mode and Interview Mode">
+            I
+            <span class="hotkey-badge"></span>
+          </button>
+          <button class="control-button" id="settingsButton" title="Open Settings">
+            ⚙
+            <span class="hotkey-badge"></span>
+          </button>
+          <button class="control-button" id="helpButton" title="Show/Hide hotkeys help (Ctrl+Shift+I for DevTools)">
+            ?
+            <span class="hotkey-badge">I</span>
+          </button>
+          <button class="control-button" id="exitButton" title="Exit application">
+            ✕
+            <span class="hotkey-badge">P</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Startup Label -->
+    <div class="startup-label" id="startupLabel">
+      🚀 Powered by ACC @2025
+    </div>
+
+    <!-- Help Window -->
+    <div class="help-window" id="helpWindow" style="display: none;">
+      <div class="help-content">
+        <h3>Hotkeys</h3>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+/</div>
+          <div class="help-desc">Send to WebView</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+J / L</div>
+          <div class="help-desc">Move Left / Right</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+I / K</div>
+          <div class="help-desc">Move Up / Down</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+R / T</div>
+          <div class="help-desc">Width Decrease / Increase</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+Q / A</div>
+          <div class="help-desc">Height Decrease / Increase</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+↓ / ↑</div>
+          <div class="help-desc">Opacity Decrease / Increase</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+H</div>
+          <div class="help-desc">Toggle Visibility</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+P</div>
+          <div class="help-desc">Exit</div>
+        </div>
+        <div class="help-item">
+          <div class="help-key">Ctrl+Shift+.</div>
+          <div class="help-desc">Screenshot</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
+
