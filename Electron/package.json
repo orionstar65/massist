@@ -1,0 +1,64 @@
+{
+  "name": "stealth-interview-assistant-mac",
+  "version": "1.0.0",
+  "description": "Stealth Interview Assistant for macOS",
+  "main": "main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron . --dev",
+    "debug": "NODE_ENV=development electron . --dev --inspect",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "rebuild": "electron-rebuild",
+    "postinstall": "electron-rebuild"
+  },
+  "keywords": [
+    "electron",
+    "interview",
+    "assistant",
+    "speech-recognition"
+  ],
+  "author": "ACC",
+  "license": "MIT",
+  "devDependencies": {
+    "chokidar": "^3.6.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9"
+  },
+  "dependencies": {
+    "googleapis": "^128.0.0",
+    "node-addon-api": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.stealthinterviewassistant.mac",
+    "productName": "Stealth Interview Assistant",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSMicrophoneUsageDescription": "This app needs microphone access to provide live captions during interviews.",
+        "NSCameraUsageDescription": "This app needs camera access for optional features."
+      }
+    },
+    "files": [
+      "main/**/*",
+      "renderer/**/*",
+      "services/**/*",
+      "shared/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!node_modules/**/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!node_modules/**/*.d.ts",
+      "!node_modules/**/*.map"
+    ]
+  }
+}

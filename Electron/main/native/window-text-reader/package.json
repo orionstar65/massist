@@ -1,0 +1,15 @@
+{
+  "name": "window-text-reader",
+  "version": "1.0.0",
+  "description": "Native module for reading text from macOS windows using Accessibility APIs",
+  "main": "index.js",
+  "scripts": {
+    "install": "node-gyp rebuild"
+  },
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "^7.0.0"
+  }
+}
+
+

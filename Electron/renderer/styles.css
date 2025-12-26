@@ -1,0 +1,710 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: transparent;
+  color: #FFFFFF;
+  overflow: hidden;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-container {
+  display: flex;
+  gap: 5px;
+}
+
+/* Main Border */
+.main-border {
+  display: flex;
+  flex-direction: column;
+  border: 2px dashed rgba(63, 63, 70, 0.5);
+  border-radius: 8px;
+  background: transparent;
+  padding: 0;
+  position: relative;
+  -webkit-app-region: no-drag;
+  gap: 5px;
+}
+
+.content-grid {
+  display: flex;
+  gap: 5px;
+}
+
+/* Left Panel */
+.left-panel {
+  width: 45%;
+  background: rgba(37, 37, 38, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow flex children to shrink */
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 6px;
+  min-height: 0; /* Allow flex children to shrink */
+  overflow: hidden; /* Prevent content from overflowing */
+}
+
+.buttons-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 0 3px;
+}
+
+.button-group-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.icon-button {
+  width: 28px;
+  height: 28px;
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s;
+  -webkit-app-region: no-drag;
+  position: relative;
+}
+
+.icon-button:hover {
+  background: #4EC9B0;
+  transform: scale(1.15);
+}
+
+.icon-button:active {
+  transform: scale(1.0);
+}
+
+.caption-source-toggle {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 4px;
+  background: rgba(63, 63, 70, 0.3);
+  border-radius: 4px;
+}
+
+.caption-source-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  transition: background 0.2s;
+}
+
+.caption-source-label:hover {
+  background: rgba(63, 63, 70, 0.5);
+}
+
+.caption-source-label input[type="radio"] {
+  margin: 0;
+  margin-right: 4px;
+  cursor: pointer;
+}
+
+.caption-source-label input[type="radio"]:checked + span {
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+}
+
+.slider {
+  width: 80px;
+  height: 2px;
+  background: #404040;
+  outline: none;
+  -webkit-appearance: none;
+  -webkit-app-region: no-drag;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  background: #4EC9B0;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  background: #4EC9B0;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.font-size-label {
+  color: #4EC9B0;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 25px;
+  text-align: center;
+}
+
+.status-light {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #808080;
+  box-shadow: 0 0 10px rgba(128, 128, 128, 0.7);
+  -webkit-app-region: no-drag;
+}
+
+.status-light.green {
+  background: #32CD32;
+  box-shadow: 0 0 10px rgba(50, 205, 50, 0.7);
+}
+
+.status-light.orange {
+  background: #FFA500;
+  box-shadow: 0 0 10px rgba(255, 165, 0, 0.7);
+}
+
+.status-light.red {
+  background: #FF0000;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+}
+
+/* Calendar Section */
+.calendar-section {
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 4px;
+  padding: 6px;
+  margin-bottom: 6px;
+}
+
+.calendar-controls {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.action-button {
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  padding: 6px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-app-region: no-drag;
+}
+
+.action-button:hover:not(:disabled) {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.calendar-status {
+  color: #B0B0B0;
+  font-size: 10px;
+  margin-bottom: 5px;
+  word-wrap: break-word;
+}
+
+.calendar-events {
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.calendar-event {
+  background: rgba(45, 45, 48, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 3px;
+  padding: 6px;
+  margin-bottom: 4px;
+}
+
+.calendar-event-title {
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.calendar-event-time {
+  color: #4EC9B0;
+  font-size: 9px;
+}
+
+.calendar-event-calendar {
+  color: #808080;
+  font-size: 8px;
+  margin-top: 2px;
+}
+
+/* Caption Box */
+.caption-box {
+  flex: 1;
+  background: rgba(30, 30, 30, 0.2);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow flex children to shrink */
+}
+
+.caption-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  scroll-behavior: smooth;
+  min-height: 0; /* Allow scrolling when content exceeds container */
+  /* Ensure scrollbar is visible when needed */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.caption-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.caption-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.caption-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.caption-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.caption-text {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 15px;
+  color: #D4D4D4;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Splitter */
+.splitter {
+  grid-column: 2;
+  width: 5px;
+  background: transparent;
+  cursor: col-resize;
+  -webkit-app-region: no-drag;
+}
+
+/* Right Panel */
+.right-panel {
+  grid-column: 3;
+  background: rgba(37, 37, 38, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 8px;
+  margin: 5px 5px 5px 3px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.address-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+  border-bottom: 1px solid rgba(63, 63, 70, 0.8);
+}
+
+.webview-container {
+  flex: 1;
+  margin: 5px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+webview {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Button Groups Row */
+.button-groups-row {
+  display: flex;
+  gap: 5px;
+}
+
+.button-group {
+  background: rgba(37, 37, 38, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.toggle-buttons {
+  flex: 1;
+  gap: 4px;
+}
+
+.toggle-button {
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-app-region: no-drag;
+}
+
+.toggle-button:hover {
+  background: #3D3D40;
+  opacity: 0.8;
+}
+
+.toggle-button.active {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+.radio-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radio-button {
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+}
+
+.radio-button input[type="radio"] {
+  display: none;
+}
+
+.radio-button:hover {
+  background: #3D3D40;
+  opacity: 0.8;
+}
+
+.radio-button.active {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+.radio-button span {
+  white-space: nowrap;
+  margin: auto;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
+.action-button-large {
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  -webkit-app-region: no-drag;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-button-large:hover {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+.action-button-primary {
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-app-region: no-drag;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-button-primary:hover {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+/* Control Panel */
+.control-panel {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 5px;
+}
+
+.control-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-button {
+  width: 28px;
+  height: 28px;
+  background: #2D2D30;
+  border: 1px solid #3F3F46;
+  border-radius: 4px;
+  color: #FFFFFF;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-app-region: no-drag;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-button:hover {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+.control-button.active {
+  background: #4EC9B0;
+  border-color: #4EC9B0;
+}
+
+/* Startup Label */
+.startup-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(37, 37, 38, 0.9);
+  border: 1px solid rgba(63, 63, 70, 0.5);
+  border-radius: 6px;
+  padding: 10px 8px;
+  font-size: 14px;
+  color: #B0B0B0;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+}
+
+.startup-label.visible {
+  opacity: 1;
+}
+
+/* Help Window */
+.help-window {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 8px;
+  padding: 8px 6px;
+  z-index: 2000;
+  min-width: 250px;
+}
+
+.help-content h3 {
+  font-size: 14px;
+  font-weight: bold;
+  color: #E0E0E0;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.help-item {
+  margin-bottom: 8px;
+}
+
+.help-key {
+  font-size: 11px;
+  color: #B0B0B0;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.help-desc {
+  font-size: 11px;
+  color: #E0E0E0;
+  text-align: center;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 1.5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(78, 201, 176, 0.6);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(78, 201, 176, 0.8);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.main-border {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Hotkey Badge */
+.hotkey-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(78, 201, 176, 0.9);
+  color: #FFFFFF;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  min-width: 14px;
+  text-align: center;
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Hide empty hotkey badges */
+.hotkey-badge:empty {
+  display: none;
+}
+
+/* Adjust icon button content when badge is present */
+.icon-button .icon,
+.icon-button > span:first-child {
+  position: relative;
+  z-index: 1;
+}
+
+/* For action buttons, position badge differently */
+.action-button-primary .hotkey-badge,
+.action-button-large .hotkey-badge {
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  padding: 2px 5px;
+  min-width: 16px;
+}
+
+/* For control buttons */
+.control-button .hotkey-badge {
+  top: 1px;
+  right: 1px;
+  font-size: 7px;
+  padding: 1px 3px;
+  min-width: 12px;
+}
+
+/* Badge hover effect */
+.icon-button:hover .hotkey-badge,
+.action-button-primary:hover .hotkey-badge,
+.action-button-large:hover .hotkey-badge,
+.control-button:hover .hotkey-badge {
+  background: rgba(78, 201, 176, 1);
+  opacity: 1;
+}
+
